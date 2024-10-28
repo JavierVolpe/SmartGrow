@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Light Control{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="text-center mb-4">
+                {{ light_status | safe }}
+            </div>
+            <div class="d-flex justify-content-center mb-4">
+                <form action="lights" method="post" class="me-3">
+                    <input type="hidden" name="lightStatus" value="ON">
+                    <button type="submit" class="btn btn-success btn-lg">Turn ON Light</button>
+                </form>
+                <form action="lights" method="post">
+                    <input type="hidden" name="lightStatus" value="OFF">
+                    <button type="submit" class="btn btn-danger btn-lg">Turn OFF Light</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% set active_menu = 'lights' %}

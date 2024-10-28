@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Photo Taken{% endblock %}
+
+{% block content %}
+<div class="container text-center">
+    <h1>Photo Taken</h1>
+    
+    <!-- Show the photo and ensure it fits within the webpage -->
+    <img src="{{ photo_url }}" alt="Photo" class="img-fluid" style="max-width: 100%; height: auto; border: 2px solid white;">
+
+    <br>
+    <a href="/" class="btn btn-primary mt-3">Take Another Photo</a>
+</div>
+{% endblock %}
+
+{% set active_menu = 'photo' %}

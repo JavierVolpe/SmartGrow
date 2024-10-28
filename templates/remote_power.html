@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Remote Control {% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h2 class="card-title">Remote Shutdown</h2>
+                    <form action="remote_shutdown" method="post">
+                        <input name="ipAddress" value="{{ remote_pc_ip | safe }}" class="form-control mb-2">
+                        <button type="submit" class="btn btn-danger btn-lg">Turn OFF PC</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 offset-md-3">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h2 class="card-title">Remote Power On</h2>
+                    <form action="remote_wakeup" method="post">
+                        <input name="macAddress" value="{{ remote_pc_mac | safe }}" class="form-control mb-2">
+                        <button type="submit" class="btn btn-success btn-lg">Turn ON PC</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<center>
+{{ result | safe }}
+</center>
+{% endblock %}
+{% set active_menu = 'remote_power' %}

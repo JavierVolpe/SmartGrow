@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Temperature{% endblock %}
+
+{% block content %}
+<center>
+    <div class="container-fluid">  <!-- Use a fluid container to make the graphs more responsive -->
+        <div class="row justify-content-center">  <!-- Center align the row -->
+            <div class="col-lg-4 col-md-6 col-sm-12">
+                <h3>Temperature</h3>
+                {{ data_img | safe }}
+            </div>
+            <div class="col-lg-4 col-md-6 col-sm-12">
+                <h3>Humidity</h3>
+                {{ data_img2 | safe }}
+            </div>
+            <div class="col-lg-4 col-md-6 col-sm-12">
+                <h3>Moisture</h3>
+                {{ data_img3 | safe }}
+            </div>
+        </div>
+    </div>
+</center>
+{% endblock %}
+
+{% set active_menu = 'temperature' %}
