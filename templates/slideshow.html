@@ -5,11 +5,13 @@
 {% block content %}
 <div class="container text-center my-5">
     <div class="slideshow-container">
-        <img class="img-fluid" src="{{ url_for('static', filename=image) }}" alt="Slideshow Image">
+        <div class="image-wrapper">
+            <img id="zoomable-image" class="img-fluid" src="{{ url_for('static', filename=image) }}" alt="Slideshow Image">
+        </div>
         
         <div class="nav-buttons d-flex justify-content-between mt-4">
-            <a href="/slideshow/{{ prev_image }}" class="btn btn-outline-light">&#10094; Previous</a> <!-- Previous -->
-            <a href="/slideshow/{{ next_image }}" class="btn btn-outline-light">Next &#10095;</a> <!-- Next -->
+            <a href="/slideshow/{{ prev_image }}" class="btn btn-outline-light">&#10094; Previous</a>
+            <a href="/slideshow/{{ next_image }}" class="btn btn-outline-light">Next &#10095;</a>
         </div>
         
         <!-- Display the date and time of the picture below the slideshow -->
@@ -22,19 +24,86 @@
 <style>
     .slideshow-container {
         max-width: 100%;
-        max-height: 80vh; /* Ensure the image doesn't exceed the viewport height */
+        max-height: 80vh;
+        position: relative;
+    }
+    .image-wrapper {
+        overflow: hidden;
+        position: relative;
     }
     .slideshow-container img {
         width: auto;
         height: auto;
         max-width: 100%;
-        max-height: 80vh; /* Maintain aspect ratio */
-        border: 2px solid white; 
+        max-height: 80vh;
+        border: 2px solid white;
+        transition: transform 0.2s ease;
+        cursor: grab;
+        user-select: none;
     }
     .nav-buttons a {
         font-size: 1.5rem;
     }
 </style>
+
+<script>
+    const imgContainer = document.querySelector('.slideshow-container img');
+    let zoomLevel = parseFloat(localStorage.getItem('zoomLevel')) || 1;
+    let translateX = parseFloat(localStorage.getItem('translateX')) || 0;
+    let translateY = parseFloat(localStorage.getItem('translateY')) || 0;
+    let isDragging = false;
+    let startX, startY;
+
+    function applyTransform() {
+        imgContainer.style.transform = `scale(${zoomLevel}) translate(${translateX}px, ${translateY}px)`;
+    }
+
+    // Apply saved zoom level and translation when loading the page
+    applyTransform();
+
+    imgContainer.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        const zoomSpeed = 0.1;
+        zoomLevel += event.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+        zoomLevel = Math.max(zoomLevel, 0.1); // Prevent inversion
+        localStorage.setItem('zoomLevel', zoomLevel);
+        applyTransform();
+    });
+
+    imgContainer.addEventListener('mousedown', (event) => {
+        isDragging = true;
+        startX = event.clientX - translateX;
+        startY = event.clientY - translateY;
+        imgContainer.style.cursor = 'grabbing';
+        event.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (event) => {
+        if (isDragging) {
+            translateX = event.clientX - startX;
+            translateY = event.clientY - startY;
+            localStorage.setItem('translateX', translateX);
+            localStorage.setItem('translateY', translateY);
+            applyTransform();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            imgContainer.style.cursor = 'grab';
+        }
+    });
+
+    // Reset zoom level and position when changing images
+    window.addEventListener('unload', () => {
+        localStorage.removeItem('zoomLevel');
+        localStorage.removeItem('translateX');
+        localStorage.removeItem('translateY');
+    });
+</script>
+
+
 {% endblock %}
 
 {% set active_menu = 'gallery' %}
