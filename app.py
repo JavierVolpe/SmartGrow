@@ -1,22 +1,39 @@
-# Import necessary modules for the web server
+# Flask and Flask-Login imports
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+
+# Security and password hashing
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Data visualization and image handling imports
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+
+# System and OS-level imports
 import socket
 import subprocess
 import os
 import asyncio
 import sqlite3
+
+# Date and time handling
 from datetime import datetime
+
+# Secret key generation for session management
 import secrets
 
-# Import custom module
+# Import custom modules for specific functionalities
 from turn_lights import control_wiz_light, get_light_status
 from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdown_func
+
+
+# TODO:
+# 1. Wizlight: make it optional
+
+
+
 
 # Configuration
 wizlight_ip = "192.168.87.102"
@@ -357,8 +374,12 @@ def watering():
     if request.method == 'POST':
         amount_ml = request.form.get('amount_ml') or None
         if amount_ml:
-
                 amount_ml = int(amount_ml)
+                if amount_ml < 0:
+                    flash('Amount must be a positive number.', 'danger')
+                    return redirect(url_for('watering'))
+
+
         else: 
             amount_ml = None
         try:        
