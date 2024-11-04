@@ -1,5 +1,7 @@
 # Import necessary modules for the web server
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -24,6 +26,35 @@ remote_pc_user = "jvolp"
 watering_db = 'db/watering.db'
 
 app = Flask(__name__)
+
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# User class for Flask-Login
+class User(UserMixin):
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
+
+# Load user from database
+@login_manager.user_loader
+def load_user(user_id):
+    conn = sqlite3.connect('db/users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        return User(id=user[0], username=user[1], password=user[2])
+    return None
+
+
+
+
+
 
 # Function to ensure the watering table exists
 def create_watering_table():
@@ -104,9 +135,63 @@ def graph_db_data(sensor_type="temp"):
 def index():
     return render_template("index.html")
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
+
+        # Save user to the database
+        conn = sqlite3.connect('db/users.db')
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
+        conn.commit()
+        conn.close()
+        flash('Registration successful. You can now log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = sqlite3.connect('db/users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        conn.close()
+
+        if user and check_password_hash(user[2], password):
+            user_obj = User(id=user[0], username=user[1], password=user[2])
+            login_user(user_obj)
+            flash('Login successful!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password. Please try again.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
+
+
+
+
+
 
 @app.route("/temperature")
-def stue():
+@login_required
+def temperature():
     return render_template(
         "temperature.html",
         data_img=graph_db_data("temp"),
@@ -116,6 +201,7 @@ def stue():
 
 
 @app.route("/lights", methods=["GET", "POST"])
+@login_required
 def lights():
     light_status = asyncio.run(get_light_status(wizlight_ip))
     if request.method == "POST":
@@ -132,6 +218,7 @@ def lights():
 
 
 @app.route('/take_photo', methods=['POST'])
+@login_required
 def take_photo():
     # Use the format for filenames that works well with the filesystem and Flask static files
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -146,6 +233,7 @@ def take_photo():
 
 
 @app.route('/show_photo')
+@login_required
 def show_photo():
     # Get the filename of the photo
     photo_filename = request.args.get('photo_filename')
@@ -156,26 +244,49 @@ def show_photo():
 
 
 @app.route('/photo')
+@login_required
 def photo():
     return render_template('photo.html')
 
 IMAGE_DIR = '/home/javier/SmartHome/static'
 # Route to list images in a gallery
-@app.route('/gallery', methods=['GET', 'POST'])
-def gallery():
+
+
+@app.route('/gallery', defaults={'page': 1}, methods=['GET', 'POST'])
+@app.route('/gallery/page/<int:page>', methods=['GET', 'POST'])
+@login_required
+def gallery(page):
     images = sorted([img for img in os.listdir(IMAGE_DIR) if not img.startswith('.')], reverse=True)  # Exclude hidden files
     filtered_images = images
-    
+
+    # Filter images based on date in the filename (assuming format YYYYMMDD_HHMMSS)
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    
+
     if start_date and end_date:
-        # Filter images based on the date in the filename (assuming filename includes timestamp like YYYYMMDD_HHMMSS)
         filtered_images = [img for img in images if start_date <= img[:8] <= end_date]
-    
-    return render_template('gallery.html', images=filtered_images)
+
+    # Pagination logic
+    images_per_page = 12
+    total_images = len(filtered_images)
+    start_index = (page - 1) * images_per_page
+    end_index = start_index + images_per_page
+    paginated_images = filtered_images[start_index:end_index]
+
+    # Determine if there are previous and next pages
+    has_prev = page > 1
+    has_next = end_index < total_images
+
+    return render_template(
+        'gallery.html',
+        images=paginated_images,
+        page=page,
+        has_prev=has_prev,
+        has_next=has_next
+    )
 
 @app.route('/slideshow/<filename>')
+@login_required
 def slideshow(filename):
     # Get the list of images, excluding hidden files
     images = [img for img in sorted(os.listdir('static')) if not img.startswith('.')]  # Exclude hidden files
@@ -194,6 +305,7 @@ def slideshow(filename):
 
 
 @app.route("/remote_wakeup", methods=["GET", "POST"])
+@login_required
 def wol():
     if request.method == "POST":
         mac_address = request.form.get("macAddress")
@@ -211,7 +323,9 @@ def wol():
 
 
 @app.route("/remote_shutdown", methods=["GET", "POST"])
+@login_required
 def remote_shutdown():
+
     if request.method == "POST":
         ip_address = request.form.get("ipAddress")
         if is_valid_ip(ip_address):
@@ -229,12 +343,14 @@ def remote_shutdown():
 
 
 @app.route("/remote_power")
+@login_required
 def remote_power():
     return render_template("remote_power.html", remote_pc_ip=remote_pc_ip, remote_pc_mac=remote_pc_mac)
 
 
 # Route to handle displaying and recording watering
 @app.route('/watering', methods=['GET', 'POST'])
+@login_required
 def watering():
     create_watering_table()  # Ensure the table exists
 
@@ -278,6 +394,7 @@ def watering():
 
 
 @app.route('/delete_watering/<int:log_id>', methods=['POST'])
+@login_required
 def delete_watering(log_id):
     # Connect to the database
     conn = sqlite3.connect(watering_db)

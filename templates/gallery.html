@@ -1,53 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Image Gallery{% endblock %}
+{% block title %}Gallery{% endblock %}
 
 {% block content %}
-<div class="container text-center">
-    <h1>Image Gallery</h1>
-
-    <!-- Date filter form -->
-    <form method="get" action="/gallery">
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <input type="text" name="start_date" class="form-control" placeholder="Start Date: dd/mm-yyyy">
-            </div>
-            <div class="col-md-3">
-                <input type="text" name="end_date" class="form-control" placeholder="End Date: dd/mm-yyyy">
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">Filter</button>
-            </div>
-        </div>
-    </form>
-</div>
-<style>
-    .gallery img {
-        background-color: #333; /* Dark background for images */
-        border: 1px solid #fff;  /* Optional: White border to highlight image */
-        max-width: 100%;
-        height: auto;
-    }
-
-    .gallery-item {
-        margin-bottom: 15px;  /* Adds some spacing between the images */
-    }
-</style>
-
-<div class="container">
-    <div class="row gallery">
+<div class="container text-center my-5">
+    <div class="row">
         {% for image in images %}
-        <div class="col-md-3 gallery-item"> 
-            <a href="{{ url_for('slideshow', filename=image) }}"> <!-- Make image clickable -->
-                <img src="{{ url_for('static', filename=image) }}" alt="Image">
+        <div class="col-md-4 col-sm-6 mb-4"> <!-- Adjusted column size for larger images -->
+            <a href="/slideshow/{{ image }}">
+                <img class="img-thumbnail" src="{{ url_for('static', filename=image) }}" alt="Gallery Image">
             </a>
         </div>
         {% endfor %}
     </div>
+
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('gallery', page=page - 1) }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo; Previous</span>
+                </a>
+            </li>
+            {% endif %}
+            {% if has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('gallery', page=page + 1) }}" aria-label="Next">
+                    <span aria-hidden="true">Next &raquo;</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
 </div>
 
+<style>
+    .img-thumbnail {
+        width: 100%; /* Ensures the image fills the column width */
+        height: auto;
+        border: 2px solid #ffffff;
+    }
 
-
+    .container .row {
+        justify-content: center; /* Centers the images for a balanced look */
+    }
+</style>
 {% endblock %}
 
 {% set active_menu = 'gallery' %}
