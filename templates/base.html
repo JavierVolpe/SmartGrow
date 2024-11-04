@@ -11,28 +11,56 @@
         .active-link {
             font-weight: bold; 
         }
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
     </style>
-
 </head>
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary" data-bs-theme="dark">
         <div class="container-fluid">
-          <a class="navbar-brand" href="#">SmartGrow</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-            <div class="navbar-nav">
-              <a class="nav-link {% if active_menu == 'home' %} active-link {% endif %}" aria-current="page" href="/">Home</a>
-              <a class="nav-link {% if active_menu == 'temperature' %} active-link {% endif %}" href="/temperature">Temperature</a>
-              <a class="nav-link {% if active_menu == 'lights' %} active-link {% endif %}" href="/lights">Light control</a>
-              <a class="nav-link {% if active_menu == 'remote_power' %} active-link {% endif %}" href="/remote_power">Remote power</a>
-              <a class="nav-link {% if active_menu == 'photo' %} active-link {% endif %}" href="/photo">Camera</a>
-              <a class="nav-link {% if active_menu == 'gallery' %} active-link {% endif %}" href="/gallery">Gallery</a>
+            <a class="navbar-brand" href="#">SmartGrow</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+                <div class="navbar-nav">
+                    <a class="nav-link {% if active_menu == 'home' %} active-link {% endif %}" aria-current="page" href="/">Home</a>
+                    <a class="nav-link {% if active_menu == 'temperature' %} active-link {% endif %}" href="/temperature">Temperature</a>
+
+                    <!-- Dropdown menu for "Light control" and "Remote power" -->
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if active_menu == 'lights' or active_menu == 'remote_power' %} active-link {% endif %}" href="#" id="navbarDropdown" role="button">
+                            Controls
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/lights">Light control</a></li>
+                            <li><a class="dropdown-item" href="/remote_power">Remote power</a></li>
+                        </ul>
+                    </div>
+
+                    <a class="nav-link {% if active_menu == 'photo' %} active-link {% endif %}" href="/photo">Camera</a>
+                    <a class="nav-link {% if active_menu == 'gallery' %} active-link {% endif %}" href="/gallery">Gallery</a>
+                    <a class="nav-link {% if active_menu == 'watering' %} active-link {% endif %}" href="/watering">Watering</a>
+                </div>
             </div>
-          </div>
         </div>
-      </nav>
+    </nav>
+
+    <!-- Flash messages block -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="container mt-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}
+
     {% block content %} {% endblock %}
 </body>
 </html>

@@ -1,5 +1,5 @@
 # Import necessary modules for the web server
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -10,69 +10,37 @@ import os
 import asyncio
 import sqlite3
 from datetime import datetime
+import secrets
 
 # Import custom module
 from turn_lights import control_wiz_light, get_light_status
+from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdown_func
 
 # Configuration
 wizlight_ip = "192.168.87.102"
 remote_pc_ip = "192.168.87.3"
 remote_pc_mac = "24:4b:fe:93:78:f8"
 remote_pc_user = "jvolp"
+watering_db = 'db/watering.db'
 
 app = Flask(__name__)
 
-def is_valid_ip(ip):
-    parts = ip.split('.')
-    if len(parts) != 4:
-        return False
-    for part in parts:
-        try:
-            num = int(part)
-            if num < 0 or num > 255:
-                return False
-        except ValueError:
-            return False
-    return True
-
-def is_valid_mac(mac):
-    parts = mac.split(':')
-    if len(parts) != 6:
-        return False
-    for part in parts:
-        try:
-            num = int(part, 16)
-            if num < 0 or num > 255:
-                return False
-        except ValueError:
-            return False
-    return True
+# Function to ensure the watering table exists
+def create_watering_table():
+    conn = sqlite3.connect('db/watering.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS watering_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            amount_ml INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 
-def remote_shutdown_func(ip_address):
-    try:
-        # Attempt SSH connection with a timeout of 10 seconds
-        ssh_command = ["ssh", "-o", "ConnectTimeout=10", f"{remote_pc_user}@{ip_address}", "shutdown", "/s", "/t", "60"]
-        subprocess.run(ssh_command, check=True)
-        return True
-    except subprocess.CalledProcessError as e:
-        # Handle SSH command execution errors
-        print(f"Error occurred: {e}")
-        return False
-    except socket.timeout:
-        # Handle timeout (host didn't respond)
-        print("Connection timed out. Host didn't respond.")
-        return False
-    except Exception as ex:
-        # Handle other exceptions (e.g., connection refused)
-        print(f"An error occurred: {ex}")
-        return False
 
-
-def execute_command(command):
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
-    output, error = process.communicate()
-    return error or output
 
 def get_data_from_db(number_of_rows=10):
     query = "SELECT * FROM growdata ORDER BY date_time_str DESC;"
@@ -264,5 +232,88 @@ def remote_shutdown():
 def remote_power():
     return render_template("remote_power.html", remote_pc_ip=remote_pc_ip, remote_pc_mac=remote_pc_mac)
 
+
+# Route to handle displaying and recording watering
+@app.route('/watering', methods=['GET', 'POST'])
+def watering():
+    create_watering_table()  # Ensure the table exists
+
+    if request.method == 'POST':
+        amount_ml = request.form.get('amount_ml') or None
+        if amount_ml:
+
+                amount_ml = int(amount_ml)
+        else: 
+            amount_ml = None
+        try:        
+
+                # Connect to the database
+                conn = sqlite3.connect(watering_db)
+                cursor = conn.cursor()
+
+                time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # Insert the new watering record
+                cursor.execute('INSERT INTO watering_log (timestamp, amount_ml) VALUES (?, ?)', (time_now, amount_ml))
+                conn.commit()
+                conn.close()
+
+                # Flash a success message
+                flash('Watering record added successfully.', 'success')
+        except Exception as e:
+            print(f"Error: {e}")
+            flash('Error adding watering record. Please try again.', 'danger')
+
+        return redirect(url_for('watering'))
+
+
+    # Fetch watering logs
+    conn = sqlite3.connect(watering_db)
+    cursor = conn.cursor()
+    cursor.execute('SELECT timestamp, amount_ml, id FROM watering_log ORDER BY timestamp DESC')
+    logs = cursor.fetchall()
+    conn.close()
+
+
+    return render_template('watering.html', logs=logs)
+
+
+@app.route('/delete_watering/<int:log_id>', methods=['POST'])
+def delete_watering(log_id):
+    # Connect to the database
+    conn = sqlite3.connect(watering_db)
+    cursor = conn.cursor()
+
+    # Delete the record with the given id
+    cursor.execute('DELETE FROM watering_log WHERE id = ?', (log_id,))
+    conn.commit()
+    conn.close()
+
+    # Flash a success message
+    flash('Watering record deleted successfully.', 'success')
+
+    return redirect(url_for('watering'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+app.secret_key = secrets.token_hex(16)
+
 app.run(debug=True, host="0.0.0.0", port=5000)
- 
