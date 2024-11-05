@@ -31,6 +31,7 @@ from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdo
 
 # TODO:
 # 1. Wizlight: make it optional
+# 2. Upload code for the ESP32
 
 
 
@@ -59,11 +60,15 @@ class User(UserMixin):
 # Load user from database
 @login_manager.user_loader
 def load_user(user_id):
-    conn = sqlite3.connect('db/users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
-    user = cursor.fetchone()
-    conn.close()
+    try:
+        conn = sqlite3.connect('db/users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+    except Exception as e:
+        print(f"Error loading user: {e}")
+
     if user:
         return User(id=user[0], username=user[1], password=user[2])
     return None
@@ -75,73 +80,81 @@ def load_user(user_id):
 
 # Function to ensure the watering table exists
 def create_watering_table():
-    conn = sqlite3.connect('db/watering.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS watering_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            amount_ml INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('db/watering.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS watering_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                amount_ml INTEGER
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error creating watering table: {e}")
+        return False
 
 
 
 
-def get_data_from_db(number_of_rows=10):
+def graph_db_data(sensor_type="temp", number_of_rows=24):
+    # Fetch data from the database
     query = "SELECT * FROM growdata ORDER BY date_time_str DESC;"
-    datetime, temperature, humidity, moisture = [], [], [], []
+    timestamps, temperature_data, humidity_data, moisture_data = [], [], [], []
     try:
         conn = sqlite3.connect('db/data.db')
         curs = conn.cursor()
         curs.execute(query)
         rows = curs.fetchmany(number_of_rows)
         for row in rows:
-            datetime.append(row[0])
-            temperature.append(row[2])
-            humidity.append(row[4])
-            moisture.append(row[1])
+            timestamps.append(str(row[0])[:19])  # Remove milliseconds
+            temperature_data.append(row[2])
+            humidity_data.append(row[4])
+            moisture_data.append(row[1])
     except Exception as e:
         print("Error occurred while fetching data from the database.")
         print(f"Error: {e}")
+        return ""
     finally:
         curs.close()
         conn.close()
-    return datetime, temperature, humidity, moisture
 
-def graph_db_data(sensor_type="temp"):
-    timestamps, temperature_data, humidity_data, moisture = get_data_from_db(24)  # Ensure your DB returns a third value
-    timestamps = [str(t)[:19] for t in timestamps]  # Remove milliseconds
+    # Create the plot
     fig, ax = plt.subplots(figsize=(10, 8))
     plt.style.use('dark_background')
 
     if sensor_type == "temp":
-        ax.plot(timestamps, temperature_data, label="Temperature", linestyle="-", marker="o", color="r")
-        ax.set_title("Temperature")
-        ax.set_ylabel("Temperature")
-        #ax.set_ylim(22, 28)
-        ax.fill_between(timestamps, temperature_data, color="r", alpha=0.1)
+        data_to_plot = temperature_data
+        label = "Temperature"
+        color = "r"
+        y_label = "Temperature (°C)"  # You can adjust the units if necessary
     elif sensor_type == "hum":
-        ax.plot(timestamps, humidity_data, label="Humidity", linestyle="-", marker="o", color="b")
-        ax.set_title("Humidity")
-        ax.set_ylabel("Humidity")
-        ax.fill_between(timestamps, humidity_data, color='b', alpha=0.1)
+        data_to_plot = humidity_data
+        label = "Humidity"
+        color = "b"
+        y_label = "Humidity (%)"
     elif sensor_type == "moisture":
-        ax.plot(timestamps, moisture, label="Moisture", linestyle="-", marker="o", color="g")
-        ax.set_title("Moisture")
-        ax.set_ylabel("Moisture")
-        ax.fill_between(timestamps, moisture, color='g', alpha=0.1)
+        data_to_plot = moisture_data
+        label = "Moisture"
+        color = "g"
+        y_label = "Soil Moisture (%)"
     else:
         print(f"Invalid data type: {sensor_type}")
-        return sensor_type
+        return ""
+
+    ax.plot(timestamps, data_to_plot, label=label, linestyle="-", marker="o", color=color)
+    ax.set_title(f"{label} Over Time")
+    ax.set_ylabel(y_label)
+    ax.fill_between(timestamps, data_to_plot, color=color, alpha=0.1)
 
     ax.set_xlabel("Time")
     ax.tick_params(axis="x", rotation=45)
-    ax.invert_xaxis()  # Invert X axis to show the latest data on the right
+    ax.invert_xaxis()  # Show the latest data on the right
     fig.tight_layout()
 
+    # Convert the plot to a base64-encoded string
     buf = BytesIO()
     fig.savefig(buf, format="png")
     plt.close(fig)
