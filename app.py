@@ -27,7 +27,7 @@ import secrets
 # Import custom modules for specific functionalities
 from turn_lights import control_wiz_light, get_light_status
 from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdown_func
-
+import paho.mqtt.client as mqtt
 
 # TODO:
 # 1. Wizlight: make it optional
@@ -40,7 +40,7 @@ from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdo
 wizlight_ip = "192.168.87.102"
 remote_pc_ip = "192.168.87.3"
 remote_pc_mac = "24:4b:fe:93:78:f8"
-remote_pc_user = ""
+remote_pc_user = "jvolp"
 watering_db = 'db/watering.db'
 
 app = Flask(__name__)
@@ -102,7 +102,8 @@ def create_watering_table():
 def graph_db_data(sensor_type="temp", number_of_rows=24):
     # Fetch data from the database
     query = "SELECT * FROM growdata ORDER BY date_time_str DESC;"
-    timestamps, temperature_data, humidity_data, moisture_data = [], [], [], []
+    # send_update(moisture, temperature_ds, temperature_dht, int(humidity)) 
+    timestamps, temperature_data, humidity_data, moisture_data, temp_dht = [], [], [], [], []
     try:
         conn = sqlite3.connect('db/data.db')
         curs = conn.cursor()
@@ -110,7 +111,8 @@ def graph_db_data(sensor_type="temp", number_of_rows=24):
         rows = curs.fetchmany(number_of_rows)
         for row in rows:
             timestamps.append(str(row[0])[:19])  # Remove milliseconds
-            temperature_data.append(row[2])
+            temperature_data.append(row[2]) # temperature_ds
+            temp_dht.append(row[3]) # temperature_dht
             humidity_data.append(row[4])
             moisture_data.append(row[1])
     except Exception as e:
@@ -140,6 +142,11 @@ def graph_db_data(sensor_type="temp", number_of_rows=24):
         label = "Moisture"
         color = "g"
         y_label = "Soil Moisture (%)"
+    elif sensor_type == "temp_dht":
+        data_to_plot = temp_dht
+        label = "Ambient Temperature"
+        color = "y"
+        y_label = "Ambient Temperature (°C)"
     else:
         print(f"Invalid data type: {sensor_type}")
         return ""
@@ -218,6 +225,26 @@ def logout():
 
 
 
+def publish_mqtt_message(message, success_msg, error_msg):
+    try:
+        mqtt_client = mqtt.Client()
+        mqtt_client.connect('192.168.87.2', 1883, 60)
+        mqtt_client.publish('javier/growcontrol', message)
+        mqtt_client.disconnect()
+        flash(success_msg, 'success')
+    except Exception as e:
+        flash(f'{error_msg}: {e}', 'danger')
+    return redirect(url_for('temperature'))
+
+""" @app.route("/temperature")
+@login_required
+def temperature():
+    return render_template(
+        "temperature.html",
+        data_img=graph_db_data("temp", 24),
+        data_img2=graph_db_data("hum"),
+        data_img3=graph_db_data("moisture"), )"""
+    
 
 @app.route("/temperature")
 @login_required
@@ -225,9 +252,15 @@ def temperature():
     return render_template(
         "temperature.html",
         data_img=graph_db_data("temp", 24),
-        data_img2=graph_db_data("hum"),
-        data_img3=graph_db_data("moisture"),
+        data_img2=graph_db_data("hum", 24),
+        data_img3=graph_db_data("moisture", 24),
+        data_img4=graph_db_data("temp_dht", 24),
     )
+
+@app.route('/send_update', methods=['POST'])
+def send_update():
+    return publish_mqtt_message('send_update', 'Update request sent successfully.', 'Failed to send update request')
+
 
 
 @app.route("/lights", methods=["GET", "POST"])
@@ -444,6 +477,17 @@ def delete_watering(log_id):
 
     return redirect(url_for('watering'))
 
+# Route to handle the "Start Fan" button
+@app.route('/start_fan', methods=['POST'])
+@login_required
+def start_fan():
+    return publish_mqtt_message('start_fan', 'Fan started successfully.', 'Failed to start fan')
+
+# Route to handle the "Stop Fan" button
+@app.route('/stop_fan', methods=['POST'])
+@login_required
+def stop_fan():
+    return publish_mqtt_message('stop_fan', 'Fan stopped successfully.', 'Failed to stop fan')
 
 
 
