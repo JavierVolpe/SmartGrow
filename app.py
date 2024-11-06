@@ -40,7 +40,7 @@ from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdo
 wizlight_ip = "192.168.87.102"
 remote_pc_ip = "192.168.87.3"
 remote_pc_mac = "24:4b:fe:93:78:f8"
-remote_pc_user = "jvolp"
+remote_pc_user = ""
 watering_db = 'db/watering.db'
 
 app = Flask(__name__)
@@ -224,7 +224,7 @@ def logout():
 def temperature():
     return render_template(
         "temperature.html",
-        data_img=graph_db_data("temp"),
+        data_img=graph_db_data("temp", 24),
         data_img2=graph_db_data("hum"),
         data_img3=graph_db_data("moisture"),
     )
