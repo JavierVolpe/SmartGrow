@@ -11,6 +11,7 @@ import onewire, ds18x20
 adc_pin = 34  # Use GPIO 34 for ADC
 ds_pin = Pin(4)  # Use GPIO 4 for DS18B20
 dht_pin = Pin(5)  # Use GPIO 5 for DHT22
+fan_pin = Pin(13, Pin.OUT)  # Use GPIO 13 for fan control
 # pump_pin = Pin(12, Pin.OUT)  # Use GPIO 12 for pump control
 
 # Config
@@ -24,8 +25,9 @@ topic_sub = b"javier/growcontrol"
 
 # Soil Moisture Sensor Setup
 adc = ADC(Pin(adc_pin))
-adc.atten(ADC.ATTN_11DB)  # For reading up to 3.3V
-adc.width(ADC.WIDTH_10BIT)  # 10-bit resolution (0-1023)
+adc.atten(ADC.ATTN_11DB)  # For reading up to 3.6V
+adc.width(ADC.WIDTH_12BIT)  # 12-bit resolution (0-4095)
+
 
 # DS18B20 Temperature Sensor Setup
 ds_sensor = ds18x20.DS18X20(onewire.OneWire(ds_pin))
@@ -35,13 +37,23 @@ roms = ds_sensor.scan()  # Find DS18B20 devices
 dht_sensor = dht.DHT22(dht_pin)
 
 # Moisture threshold values (adjustable)
-MOISTURE_MIN = 720  # ADC value in dry air
-MOISTURE_MAX = 276  # ADC value in fully wet condition
+DRY_SOIL = 720  # ADC value in dry soil
+WET_SOIL = 276  # ADC value in wet soil
 
+# Sleep interval and total sleep time
 SLEEP_INTERVAL = 1  # seconds
 TOTAL_SLEEP_TIME = 1800  # 30 minutes
 
-
+def fan_control(state):
+    if state == "on":
+        print("Fan turned on")
+        fan_pin.on()
+    elif state == "off":
+        print("Fan turned off")
+        fan_pin.off()
+    else:
+        print("Invalid fan state")
+        return
 
 # Function to read temperature from DS18B20
 def read_ds18b20():
@@ -64,24 +76,32 @@ def read_dht22():
 # Function to read soil moisture
 def read_soil_moisture():
     analog_value = adc.read()  # Read the raw ADC value
+    print("Raw ADC value:", analog_value)  # Add this line to print the raw value
+    analog_value = adc.read()  # Read the raw ADC value
 
     # Ensure the value is within the correct bounds
-    if analog_value < MOISTURE_MIN:
-        analog_value = MOISTURE_MIN
-    elif analog_value > MOISTURE_MAX:
-        analog_value = MOISTURE_MAX
+    if analog_value > DRY_SOIL:
+        analog_value = DRY_SOIL
+    elif analog_value < WET_SOIL:
+        analog_value = WET_SOIL
 
     # Properly scale the raw ADC value to a percentage
-    moisture_percent = ((MOISTURE_MAX - analog_value) / (MOISTURE_MAX - MOISTURE_MIN)) * 100
+    moisture_percent = ((DRY_SOIL - analog_value) / (DRY_SOIL - WET_SOIL)) * 100
 
-    return round(analog_value, 2)  # Round to 2 decimal places for better precision
+
+    return round(moisture_percent, 2)
+
 
 def mqtt_callback(topic, msg):
     print("Received message:", msg, "on topic:", topic)
     # Decode the message and trigger a function
     if msg == b"send_update":
         publish_update()
-    elif msg == b"restart":
+    elif msg == b"start_fan":
+        fan_control("on")
+    elif msg == b"stop_fan":
+        fan_control("off")
+    elif msg == b"reset":
         reset()
     # Add more conditions as needed
 
