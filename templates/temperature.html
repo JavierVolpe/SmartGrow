@@ -3,24 +3,50 @@
 {% block title %}Temperature{% endblock %}
 
 {% block content %}
-<center>
-    <div class="container-fluid">  <!-- Use a fluid container to make the graphs more responsive -->
-        <div class="row justify-content-center">  <!-- Center align the row -->
-            <div class="col-lg-4 col-md-6 col-sm-12">
-                <h3>Temperature</h3>
-                {{ data_img | safe }}
+<div class="container-fluid">
+
+    <!-- Graphs -->
+    <div class="row justify-content-center">
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-6 col-md-6 col-sm-12 text-center">
+                <h3>Temp DHT22</h3>
+                {{ data_img4 | safe }}
             </div>
-            <div class="col-lg-4 col-md-6 col-sm-12">
-                <h3>Humidity</h3>
-                {{ data_img2 | safe }}
-            </div>
-            <div class="col-lg-4 col-md-6 col-sm-12">
-                <h3>Moisture</h3>
-                {{ data_img3 | safe }}
-            </div>
+        <div class="col-lg-6 col-md-6 col-sm-12 text-center">
+            <h3>Humidity</h3>
+            {{ data_img2 | safe }}
         </div>
     </div>
-</center>
+    <div class="col-lg-6 col-md-6 col-sm-12 text-center">
+        <h3>Soil Temperature</h3>
+        {{ data_img | safe }}
+    </div>
+
+        <div class="col-lg-6 col-md-6 col-sm-12 text-center">
+            <h3>Moisture</h3>
+            {{ data_img3 | safe }}
+        </div>
+    </div>
+    <!-- Buttons to Control Devices -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            <form action="{{ url_for('send_update') }}" method="post">
+                <button type="submit" class="btn btn-primary">Request Update</button>
+            </form>
+        </div>
+        <div class="col-auto">
+            <form action="{{ url_for('start_fan') }}" method="post">
+                <button type="submit" class="btn btn-success">Start Fan</button>
+            </form>
+        </div>
+        <div class="col-auto">
+            <form action="{{ url_for('stop_fan') }}" method="post">
+                <button type="submit" class="btn btn-danger">Stop Fan</button>
+            </form>
+        </div>
+    </div>
+
+</div>
 {% endblock %}
 
 {% set active_menu = 'temperature' %}
