@@ -1,0 +1,27 @@
+import os
+
+class Config:
+    # Secret key for session management
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'AAAAAAAAAAAAAAAA')
+
+    # Database configurations
+    DATA_DB_URI = 'db/data.db'
+    USERS_DB_URI = 'db/users.db'
+    WATERING_DB_URI = 'db/watering.db'
+
+    # MQTT configurations
+    MQTT_BROKER_IP = '192.168.87.2'
+    MQTT_BROKER_PORT = 1883
+
+    # Device configurations
+    WIZLIGHT_IP = '192.168.87.102'
+    REMOTE_PC_IP = '192.168.87.3'
+    REMOTE_PC_MAC = '24:4b:fe:93:78:f8'
+    REMOTE_PC_USER = 'jvolp'
+
+    # Image directory
+    IMAGE_DIR = '/home/javier/SmartHome/static'
+
+    # Other configurations
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
