@@ -12,7 +12,7 @@ class User(UserMixin):
 # Load user from database
 def load_user(user_id):
     try:
-        conn = sqlite3.connect("db/users.db")
+        conn = sqlite3.connect(Config.USERS_DB_URI)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         user = cursor.fetchone()
@@ -28,7 +28,7 @@ def load_user(user_id):
 # Function to ensure the watering table exists
 def create_watering_table():
     try:
-        conn = sqlite3.connect("db/watering.db")
+        conn = sqlite3.connect(Config.WATERING_DB_URI)
         cursor = conn.cursor()
         cursor.execute(
             """

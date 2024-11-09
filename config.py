@@ -12,6 +12,7 @@ class Config:
     # MQTT configurations
     MQTT_BROKER_IP = '192.168.87.2'
     MQTT_BROKER_PORT = 1883
+    MQTT_PUB_TOPIC = 'javier/growcontrol'
 
     # Device configurations
     WIZLIGHT_IP = '192.168.87.102'
@@ -24,4 +25,4 @@ class Config:
 
     # Other configurations
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
+    NUMBER_OF_ROWS = 24 # Number of rows to display in tables

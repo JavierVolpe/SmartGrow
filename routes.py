@@ -8,7 +8,7 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 import asyncio
 import os
-import datetime
+from datetime import datetime
 import sqlite3
 
 from app import app, login_manager
@@ -112,10 +112,10 @@ def logout():
 def temperature():
     return render_template(
         "temperature.html",
-        data_img=graph_db_data("temp", 24),
-        data_img2=graph_db_data("hum", 24),
-        data_img3=graph_db_data("moisture", 24),
-        data_img4=graph_db_data("temp_dht", 24),
+        data_img=graph_db_data("temp"),
+        data_img2=graph_db_data("hum"),
+        data_img3=graph_db_data("moisture"),
+        data_img4=graph_db_data("temp_dht"),
     )
 
 
@@ -335,7 +335,7 @@ def watering():
             flash("Watering record added successfully.", "success")
         except Exception as e:
             print(f"Error: {e}")
-            flash("Error adding watering record. Please try again.", "danger")
+            flash(f"Error adding watering record. Please try again. (Error {e})", "danger")
 
         return redirect(url_for("watering"))
 
