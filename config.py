@@ -10,9 +10,10 @@ class Config:
     WATERING_DB_URI = 'db/watering.db'
 
     # MQTT configurations
-    MQTT_BROKER_IP = '192.168.87.2'
+    MQTT_BROKER_IP = 'localhost'
     MQTT_BROKER_PORT = 1883
     MQTT_PUB_TOPIC = 'javier/growcontrol'
+    MQTT_SUB_TOPIC = 'javier/growdata'
 
     # Device configurations
     WIZLIGHT_IP = '192.168.87.102'
@@ -21,7 +22,7 @@ class Config:
     REMOTE_PC_USER = 'jvolp'
 
     # Image directory
-    IMAGE_DIR = '/home/javier/SmartHome/static'
+    IMAGE_DIR = 'static'
 
     # Other configurations
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}

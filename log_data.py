@@ -9,7 +9,7 @@ mqtt_local_broker   = Config.MQTT_BROKER_IP
 mqtt_local_topic    = Config.MQTT_SUB_TOPIC
 db_path             = Config.DATA_DB_URI
 
-
+ 
 def create_table():
     conn = sqlite3.connect(db_path)
     curs = conn.cursor()

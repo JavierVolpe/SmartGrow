@@ -180,16 +180,13 @@ def photo():
     return render_template("photo.html")
 
 
-IMAGE_DIR = "/home/javier/SmartHome/static"
-# Route to list images in a gallery
-
 
 @app.route("/gallery", defaults={"page": 1}, methods=["GET", "POST"])
 @app.route("/gallery/page/<int:page>", methods=["GET", "POST"])
 @login_required
 def gallery(page):
     images = sorted(
-        [img for img in os.listdir(IMAGE_DIR) if not img.startswith(".")], reverse=True
+        [img for img in os.listdir(Config.IMAGE_DIR) if not img.startswith(".")], reverse=True
     )  # Exclude hidden files
     filtered_images = images
 
@@ -225,7 +222,7 @@ def gallery(page):
 def slideshow(filename):
     # Get the list of images, excluding hidden files
     images = [
-        img for img in sorted(os.listdir("static")) if not img.startswith(".")
+        img for img in sorted(os.listdir(Config.IMAGE_DIR)) if not img.startswith(".")
     ]  # Exclude hidden files
     current_index = images.index(filename)
 
