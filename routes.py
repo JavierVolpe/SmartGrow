@@ -21,7 +21,7 @@ from utils import (
     remote_shutdown_func,
 )
 from turn_lights import control_wiz_light, get_light_status
-from graph import graph_db_data
+from graph import graph_db_data, get_last_reading
 from config import Config
 
 # Configuration
@@ -110,12 +110,15 @@ def logout():
 @app.route("/temperature")
 @login_required
 def temperature():
+    last_reading = get_last_reading()
+
     return render_template(
         "temperature.html",
         data_img=graph_db_data("temp"),
         data_img2=graph_db_data("hum"),
         data_img3=graph_db_data("moisture"),
         data_img4=graph_db_data("temp_dht"),
+        last_reading=last_reading
     )
 
 
@@ -385,4 +388,5 @@ def stop_fan():
     return publish_mqtt_message(
         "stop_fan", "Fan stopped successfully.", "Failed to stop fan"
     )
+
 

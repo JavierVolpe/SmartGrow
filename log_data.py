@@ -3,11 +3,11 @@ from datetime import datetime
 from time import sleep
 import paho.mqtt.subscribe as subscribe
 import paho.mqtt.publish as publish
+from config import Config
 
-
-mqtt_local_broker   = "localhost"
-mqtt_local_topic    = "javier/growdata"
-db_path             = "db/data.db"
+mqtt_local_broker   = Config.MQTT_BROKER_IP
+mqtt_local_topic    = Config.MQTT_SUB_TOPIC
+db_path             = Config.DATA_DB_URI
 
 
 def create_table():
@@ -18,7 +18,7 @@ def create_table():
     if curs.fetchone():
         print("Table already exists. Starting program...")
     else:
-        query = """CREATE TABLE growdata (date_time_str TEXT, moisture REAL, temperature_ds REAL, temperature_dht REAL, humidity REAL, battery REAL)"""
+        query = """CREATE TABLE growdata (date_time_str TEXT, moisture REAL, temperature_ds REAL, temperature_dht REAL, humidity REAL, id INTEGER PRIMARY KEY AUTOINCREMENT)"""
         try:
             curs.execute(query)
             conn.commit()
@@ -43,17 +43,6 @@ def log_grow_data(client, userdata, message):
     moisture = float(moisture)
     data = (date_time_str, moisture, temperature_ds, temperature_dht, humidity)
 
-
-    """     if data[5] == True or data[5] == "True" or data[5] == "1": 
-        print("Der er ild !!!! Dataen sendes til Azure med det samme")
-        send_string = f"{data[0]}|{data[1]}|{data[2]}|{data[3]}|{data[4]}|{data[5]}" 
-        try:
-            # publish.single(mqtt_remote_topic, str(send_string), hostname=mqtt_remote_broker) 
-            print(f"Data NOT sent to Azure: {send_string}")
-            ..
-        except Exception as e:
-            print("Error:", e)
-            print("Failed to send data to Azure") """
     print("date_time_str, moisture, temperature_ds, temperature_dht, humidity")
     print(f"Data to be inserted: {data}")
     print()
