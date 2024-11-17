@@ -27,3 +27,9 @@ class Config:
     # Other configurations
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     NUMBER_OF_ROWS = 24 # Number of rows to display in tables
+
+    REMOTE_MQTT_HOST = "localhost"
+    REMOTE_MQTT_PORT = 1883
+    REMOTE_MQTT_TOPIC_WATERING = "javier/watering"
+    REMOTE_MQTT_USERNAME = "growtent"
+    REMOTE_MQTT_PASSWORD = "G987rowtent."
