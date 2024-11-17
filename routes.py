@@ -1,3 +1,10 @@
+# Standard library imports
+import os
+import sqlite3
+import asyncio
+from datetime import datetime
+
+# Third-party imports
 from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import (
     login_user,
@@ -6,13 +13,12 @@ from flask_login import (
     current_user,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-import asyncio
-import os
-from datetime import datetime
-import sqlite3
+import paho.mqtt.client as mqtt
 
+# Local application imports
 from app import app, login_manager
 from models import User, load_user, create_watering_table
+from config import Config
 from utils import (
     publish_mqtt_message,
     is_valid_mac,
@@ -22,21 +28,13 @@ from utils import (
 )
 from turn_lights import control_wiz_light, get_light_status
 from graph import graph_db_data, get_last_reading
-from config import Config
 
-# Configuration
-wizlight_ip = Config.WIZLIGHT_IP
-remote_pc_ip = Config.REMOTE_PC_IP
-remote_pc_mac = Config.REMOTE_PC_MAC
-watering_db = Config.WATERING_DB_URI
-image_dir = Config.IMAGE_DIR
-user_db = Config.USERS_DB_URI
 
 # Load user from database
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        conn = sqlite3.connect(user_db)
+        conn = sqlite3.connect(Config.USERS_DB_URI)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         user = cursor.fetchone()
@@ -61,7 +59,7 @@ def register():
         hashed_password = generate_password_hash(password)
 
         # Save user to the database
-        conn = sqlite3.connect(user_db)
+        conn = sqlite3.connect(Config.USERS_DB_URI)
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO users (username, password) VALUES (?, ?)",
@@ -81,7 +79,7 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect(user_db)
+        conn = sqlite3.connect(Config.USERS_DB_URI)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
@@ -91,9 +89,11 @@ def login():
             user_obj = User(id=user[0], username=user[1], password=user[2])
             login_user(user_obj)
             flash("Login successful!", "success")
+            app.logger.info(f"User '{username}' logged in at {datetime.now()}")
             return redirect(url_for("index"))
         else:
             flash("Invalid username or password. Please try again.", "danger")
+            app.logger.warning(f"Failed login attempt for username: '{username}' at {datetime.now()}")
 
     return render_template("login.html")
 
@@ -134,13 +134,13 @@ def send_update():
 @app.route("/lights", methods=["GET", "POST"])
 @login_required
 def lights():
-    light_status = asyncio.run(get_light_status(wizlight_ip))
+    light_status = asyncio.run(get_light_status(Config.WIZLIGHT_IP))
     if request.method == "POST":
         light_status = request.form.get("lightStatus")
         if light_status == "ON":
-            asyncio.run(control_wiz_light(wizlight_ip, "ON"))
+            asyncio.run(control_wiz_light(Config.WIZLIGHT_IP, "ON"))
         elif light_status == "OFF":
-            asyncio.run(control_wiz_light(wizlight_ip, "OFF"))
+            asyncio.run(control_wiz_light(Config.WIZLIGHT_IP, "OFF"))
 
         else:
             print(f"Invalid lightStatus: {light_status}")
@@ -259,12 +259,12 @@ def wol():
             result = "Error: Invalid MAC address"
     else:  # TODO: Check why is it jumping to this else
         result = None
-        if is_valid_mac(remote_pc_mac):
-            result = execute_command(f"sudo etherwake -i wlan0 {remote_pc_mac}")
+        if is_valid_mac(Config.REMOTE_PC_MAC):
+            result = execute_command(f"sudo etherwake -i wlan0 {Config.REMOTE_PC_MAC}")
         else:
             result = "Error: Invalid MAC address"
     return render_template(
-        "remote_power.html", remote_pc_ip=remote_pc_ip, remote_pc_mac=remote_pc_mac
+        "remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC
     )
 
 
@@ -286,8 +286,8 @@ def remote_shutdown():
         result = ""
     return render_template(
         "remote_power.html",
-        remote_pc_ip=remote_pc_ip,
-        remote_pc_mac=remote_pc_mac,
+        remote_pc_ip=Config.REMOTE_PC_IP,
+        remote_pc_mac=Config.REMOTE_PC_MAC,
         result=result,
     )
 
@@ -296,9 +296,23 @@ def remote_shutdown():
 @login_required
 def remote_power():
     return render_template(
-        "remote_power.html", remote_pc_ip=remote_pc_ip, remote_pc_mac=remote_pc_mac
+        "remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC
     )
 
+
+# Create MQTT Client
+mqtt_client = mqtt.Client()
+
+# Set MQTT credentials
+mqtt_client.username_pw_set(Config.REMOTE_MQTT_USERNAME, Config.REMOTE_MQTT_PASSWORD)
+
+# Connect to the MQTT broker
+def connect_mqtt():
+    try:
+        mqtt_client.connect(Config.REMOTE_MQTT_HOST, Config.REMOTE_MQTT_PORT, 60)
+        mqtt_client.loop_start()  # Start the loop in the background
+    except Exception as e:
+        print(f"Error connecting to MQTT broker: {e}")
 
 # Route to handle displaying and recording watering
 @app.route("/watering", methods=["GET", "POST"])
@@ -313,13 +327,12 @@ def watering():
             if amount_ml < 0:
                 flash("Amount must be a positive number.", "danger")
                 return redirect(url_for("watering"))
-
         else:
             amount_ml = None
-        try:
 
+        try:
             # Connect to the database
-            conn = sqlite3.connect(watering_db)
+            conn = sqlite3.connect(Config.WATERING_DB_URI)
             cursor = conn.cursor()
 
             time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -331,6 +344,19 @@ def watering():
             conn.commit()
             conn.close()
 
+            # Publish the watering event to MQTT
+            if amount_ml:
+                payload = f"Watered with {amount_ml} ml at {time_now}"
+            else:
+                payload = f"Watered with no amount at {time_now}"
+            
+            # Send MQTT message
+            try:
+                mqtt_client.publish(Config.REMOTE_MQTT_TOPIC_WATERING, payload)
+                flash(f"MQTT Correct: {payload}")
+            except:
+                flash("Error sending MQTT")
+            
             # Flash a success message
             flash("Watering record added successfully.", "success")
         except Exception as e:
@@ -340,7 +366,7 @@ def watering():
         return redirect(url_for("watering"))
 
     # Fetch watering logs
-    conn = sqlite3.connect(watering_db)
+    conn = sqlite3.connect(Config.WATERING_DB_URI)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT timestamp, amount_ml, id FROM watering_log ORDER BY timestamp DESC"
@@ -355,7 +381,7 @@ def watering():
 @login_required
 def delete_watering(log_id):
     # Connect to the database
-    conn = sqlite3.connect(watering_db)
+    conn = sqlite3.connect(Config.WATERING_DB_URI)
     cursor = conn.cursor()
 
     # Delete the record with the given id
