@@ -299,21 +299,6 @@ def remote_power():
         "remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC
     )
 
-
-# Create MQTT Client
-mqtt_client = mqtt.Client()
-
-# Set MQTT credentials
-mqtt_client.username_pw_set(Config.REMOTE_MQTT_USERNAME, Config.REMOTE_MQTT_PASSWORD)
-
-# Connect to the MQTT broker
-def connect_mqtt():
-    try:
-        mqtt_client.connect(Config.REMOTE_MQTT_HOST, Config.REMOTE_MQTT_PORT, 60)
-        mqtt_client.loop_start()  # Start the loop in the background
-    except Exception as e:
-        print(f"Error connecting to MQTT broker: {e}")
-
 # Route to handle displaying and recording watering
 @app.route("/watering", methods=["GET", "POST"])
 @login_required
@@ -395,21 +380,49 @@ def delete_watering(log_id):
     return redirect(url_for("watering"))
 
 
+# New route for fan control
+@app.route("/fan_control", methods=["GET", "POST"])
+@login_required
+def fan_control():
+    return render_template("fan_control.html")
+
 # Route to handle the "Start Fan" button
 @app.route("/start_fan", methods=["POST"])
 @login_required
 def start_fan():
-    return publish_mqtt_message(
-        "start_fan", "Fan started successfully.", "Failed to start fan"
-    )
-
+    try:
+        publish_mqtt_message("start_fan", "Fan started successfully.", "Failed to start fan")
+    except Exception as e:
+        flash(f"Failed to start fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
 
 # Route to handle the "Stop Fan" button
 @app.route("/stop_fan", methods=["POST"])
 @login_required
 def stop_fan():
-    return publish_mqtt_message(
-        "stop_fan", "Fan stopped successfully.", "Failed to stop fan"
-    )
+    try:
+        publish_mqtt_message("stop_fan", "Fan stopped successfully.", "Failed to stop fan")
+    except Exception as e:
+        flash(f"Failed to stop fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
 
+# Route to handle the "Set Fan Speed" form submission
+@app.route("/set_fan_speed", methods=["POST"])
+@login_required
+def set_fan_speed():
+    fan_speed = request.form.get("fan_speed")
+    try:
+        # Validate that fan_speed is an integer between 0 and 100
+        fan_speed_int = int(fan_speed)
+        if 0 <= fan_speed_int <= 100:
+            message = f"fan_speed_{fan_speed_int}"
+            # Publish the MQTT message
+            publish_mqtt_message(message, f"Fan speed set to {fan_speed_int}%", "Failed to set fan speed")
+        else:
+            flash("Invalid fan speed. Please enter a value between 0 and 100.", "danger")
+    except ValueError:
+        flash("Invalid fan speed. Please enter a numeric value.", "danger")
+    except Exception as e:
+        flash(f"Failed to set fan speed. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
 
