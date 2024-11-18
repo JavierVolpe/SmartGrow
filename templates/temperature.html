@@ -5,7 +5,6 @@
 {% block content %}
 <div class="container-fluid">
 
-
     <!-- Graphs -->
     <div class="row justify-content-center mt-4">
         <!-- First row: 2 graphs -->
@@ -43,15 +42,6 @@
                 <button type="submit" class="btn btn-primary">Request Update</button>
             </form>
         </div>
-        <div class="col-auto">
-            <form action="{{ url_for('start_fan') }}" method="post">
-                <button type="submit" class="btn btn-success">Start Fan</button>
-            </form>
-        </div>
-        <div class="col-auto">
-            <form action="{{ url_for('stop_fan') }}" method="post">
-                <button type="submit" class="btn btn-danger">Stop Fan</button>
-            </form>
         </div>
     </div>
 

@@ -1,5 +1,5 @@
 from umqttsimple import MQTTClient
-from machine import Pin, reset, ADC
+from machine import Pin, reset, ADC, PWM
 # from adc_sub import ADC_substitute
 from time import sleep
 import utime
@@ -12,7 +12,7 @@ adc_pin = 34  # Use GPIO 34 for ADC
 ds_pin = Pin(4)  # Use GPIO 4 for DS18B20
 dht_pin = Pin(5)  # Use GPIO 5 for DHT22
 fan_pin = Pin(13, Pin.OUT)  # Use GPIO 13 for fan control
-# pump_pin = Pin(12, Pin.OUT)  # Use GPIO 12 for pump control
+fan_pwm_pin = 14      # Use GPIO 14 for fan PWM control
 
 # Config
 test_mode = False # If True, then it will sleep for 5 seconds instead of 30 minutes
@@ -44,16 +44,19 @@ WET_SOIL = 276  # ADC value in wet soil
 SLEEP_INTERVAL = 1  # seconds
 TOTAL_SLEEP_TIME = 1800  # 30 minutes
 
-def fan_control(state):
-    if state == "on":
-        print("Fan turned on")
-        fan_pin.on()
-    elif state == "off":
-        print("Fan turned off")
-        fan_pin.off()
+# Fan PWM Setup
+fan_pwm = PWM(Pin(fan_pwm_pin), freq=25000)  # 25kHz PWM frequency
+fan_speed = 0  # Initial fan speed (0-1023)
+
+def set_fan_speed(speed_percent):
+    global fan_speed
+    if 0 <= speed_percent <= 100:
+        duty_cycle = int((speed_percent / 100) * 1023)
+        fan_pwm.duty(duty_cycle)
+        fan_speed = speed_percent
+        print(f"Fan speed set to {speed_percent}%")
     else:
-        print("Invalid fan state")
-        return
+        print("Invalid fan speed percentage. Must be between 0 and 100.")
 
 # Function to read temperature from DS18B20
 def read_ds18b20():
@@ -79,31 +82,36 @@ def read_soil_moisture():
     print("Raw ADC value:", analog_value)  # Add this line to print the raw value
     analog_value = adc.read()  # Read the raw ADC value
 
-    # Ensure the value is within the correct bounds
-    if analog_value > DRY_SOIL:
-        analog_value = DRY_SOIL
-    elif analog_value < WET_SOIL:
-        analog_value = WET_SOIL
+    # Ensure the value is within the correct bounds TEST
+#     if analog_value > DRY_SOIL:
+#         analog_value = DRY_SOIL
+#     elif analog_value < WET_SOIL:
+#         analog_value = WET_SOIL
 
     # Properly scale the raw ADC value to a percentage
     moisture_percent = ((DRY_SOIL - analog_value) / (DRY_SOIL - WET_SOIL)) * 100
 
-
-    return round(moisture_percent, 2)
+    return analog_value
+    # return round(moisture_percent, 2) TEST
 
 
 def mqtt_callback(topic, msg):
-    print("Received message:", msg, "on topic:", topic)
+    print("Received message:", msg.decode(), "on topic:", topic.decode())
     # Decode the message and trigger a function
     if msg == b"send_update":
         publish_update()
     elif msg == b"start_fan":
-        fan_control("on")
+        set_fan_speed(100)
     elif msg == b"stop_fan":
-        fan_control("off")
+        set_fan_speed(0)
     elif msg == b"reset":
         reset()
-    # Add more conditions as needed
+    elif msg.decode().startswith("fan_speed_"):
+        try:
+            speed_percent = int(msg.decode().split("_")[2])
+            set_fan_speed(speed_percent)
+        except ValueError:
+            print("Invalid fan speed value received.")
 
 def publish_update():
     moisture = read_soil_moisture()
@@ -139,4 +147,5 @@ while True:
         client.check_msg()  # Check for incoming messages
         sleep(SLEEP_INTERVAL)
         elapsed_sleep_time += SLEEP_INTERVAL
+
 
