@@ -81,6 +81,8 @@
                         <a class="nav-link {% if active_menu == 'photo' %} active-link {% endif %}" href="/photo">Camera</a>
                         <a class="nav-link {% if active_menu == 'gallery' %} active-link {% endif %}" href="/gallery">Gallery</a>
                         <a class="nav-link {% if active_menu == 'fan_control' %} active-link {% endif %}" href="/fan_control">Fan control</a>
+                        <a class="nav-link {% if active_menu == 'smart_plug' %} active-link {% endif %}" href="{{ url_for('smart_plug') }}">Smart Plug</a>
+
                         
                         <a class="nav-link" href="/logout">Logout</a>
                     {% else %}

@@ -28,6 +28,7 @@ from utils import (
 )
 from turn_lights import control_wiz_light, get_light_status
 from graph import graph_db_data, get_last_reading
+from smart_plug import mqtt_client
 
 
 # Load user from database
@@ -426,3 +427,31 @@ def set_fan_speed():
         flash(f"Failed to set fan speed. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
+
+# Route to handle Smart Plug Control Display
+@app.route("/smart_plug", methods=["GET", "POST"])
+@login_required
+def smart_plug():
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "turn_on":
+            try:
+                mqtt_client.set_plug_state(True)
+                flash("Plug turned ON.", "success")
+            except Exception as e:
+                flash(f"Failed to turn ON the plug. Error: {e}", "danger")
+        elif action == "turn_off":
+            try:
+                mqtt_client.set_plug_state(False)
+                flash("Plug turned OFF.", "success")
+            except Exception as e:
+                flash(f"Failed to turn OFF the plug. Error: {e}", "danger")
+        else:
+            flash("Invalid action.", "danger")
+        return redirect(url_for("smart_plug"))
+    else:
+        # Get the plug status
+        status = mqtt_client.get_plug_status()
+        # Get the next scheduled status change
+        schedule_info = mqtt_client.get_next_status_change()
+        return render_template("smart_plug.html", status=status, schedule_info=schedule_info)

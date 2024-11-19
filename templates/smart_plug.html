@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Plug Control{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Plug Status Heading -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-12 text-center">
+            <h2>Smart Plug Status</h2>
+        </div>
+    </div>
+
+    <!-- Plug Status Information -->
+    <div class="row justify-content-center my-4">
+        <div class="col-8">
+            {% if status %}
+                <table class="table table-bordered">
+                    <tr>
+                        <th>Status</th>
+                        <td>
+                            {% if status.output %}
+                                <span class="text-success">ON</span>
+                            {% else %}
+                                <span class="text-danger">OFF</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Power Consumption</th>
+                        <td>{{ status.apower }} W</td>
+                    </tr>
+                    <tr>
+                        <th>Voltage</th>
+                        <td>{{ status.voltage }} V</td>
+                    </tr>
+                    <tr>
+                        <th>Current</th>
+                        <td>{{ status.current }} A</td>
+                    </tr>
+                    <tr>
+                        <th>Total Energy</th>
+                        <td>{{ status.aenergy.total }} Wh</td>
+                    </tr>
+                    <tr>
+                        <th>Temperature</th>
+                        <td>{{ status.temperature.tC }} °C / {{ status.temperature.tF }} °F</td>
+                    </tr>
+                </table>
+            {% else %}
+                <p>No status information available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Next Scheduled Status Change -->
+    <div class="row justify-content-center my-4">
+        <div class="col-8 text-center">
+            {% if schedule_info %}
+                <h4>Next Scheduled Status Change:</h4>
+                <p>The plug will turn <strong>{{ schedule_info.next_state }}</strong> at {{ schedule_info.next_change.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                <p id="countdown"></p>
+            {% else %}
+                <p>Scheduling information is not available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            {% if status and status.output %}
+                <!-- If the plug is ON, show the Turn Off button -->
+                <form action="{{ url_for('smart_plug') }}" method="post">
+                    <input type="hidden" name="action" value="turn_off">
+                    <button type="submit" class="btn btn-danger">Turn Off</button>
+                </form>
+            {% else %}
+                <!-- If the plug is OFF, show the Turn On button -->
+                <form action="{{ url_for('smart_plug') }}" method="post">
+                    <input type="hidden" name="action" value="turn_on">
+                    <button type="submit" class="btn btn-success">Turn On</button>
+                </form>
+            {% endif %}
+        </div>
+        
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="row justify-content-center">
+          <div class="col-8">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endwith %}
+
+</div>
+{% if schedule_info %}
+<script>
+    // Countdown Timer Script
+    
+    var countdownDate = new Date("{{ schedule_info.next_change.strftime('%Y/%m/%d %H:%M:%S') }}").getTime();
+
+    var x = setInterval(function() {
+
+        var now = new Date().getTime();
+        var distance = countdownDate - now;
+
+        // Time calculations for days, hours, minutes and seconds
+        var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Display the result
+        document.getElementById("countdown").innerHTML = "Time remaining: " + hours + "h "
+        + minutes + "m " + seconds + "s ";
+
+        // If the countdown is over, reload the page
+        if (distance < 0) {
+            clearInterval(x);
+            document.getElementById("countdown").innerHTML = "Status changed.";
+            // Optionally, reload the page to update status
+            setTimeout(function() {
+                location.reload();
+            }, 1000);
+        }
+    }, 1000);
+    
+</script>
+{% endif %}
+{% endblock %}
+
+{% set active_menu = 'smart_plug' %}
