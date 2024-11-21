@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% set active_menu = 'watering' %}
+
 {% block title %}Watering Log{% endblock %}
 
 {% block content %}
@@ -16,12 +18,18 @@
     <hr>
 
     <h3>Watering History</h3>
-    <table class="table table-striped">
+    <table id="wateringTable" class="table table-striped table-bordered">
         <thead>
             <tr>
-                <th>Date and Time</th>
-                <th>Amount (ml)</th>
-                <th>Action</th> <!-- New column for actions -->
+                <th onclick="sortTable(0)" style="cursor: pointer;">
+                    Date and Time
+                    <i class="fas fa-sort sort-icon"></i>
+                </th>
+                <th onclick="sortTable(1)" style="cursor: pointer;">
+                    Amount (ml)
+                    <i class="fas fa-sort sort-icon"></i>
+                </th>
+                <th>Action</th> <!-- No sorting for Action column -->
             </tr>
         </thead>
         <tbody>
@@ -32,7 +40,9 @@
                 <td>
                     <!-- Delete button with confirmation -->
                     <form method="POST" action="{{ url_for('delete_watering', log_id=log[2]) }}" style="display:inline;">
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this record?');">Delete</button>
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this record?');">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
                     </form>
                 </td>
             </tr>
@@ -40,6 +50,85 @@
         </tbody>
     </table>
 </div>
-{% endblock %}
 
-{% set active_menu = 'watering' %}
+<!-- JavaScript for Table Sorting -->
+<script>
+    // Keep track of the current sort direction for each column
+    const sortDirections = {
+        0: 'asc', // Date and Time column
+        1: 'asc'  // Amount (ml) column
+    };
+
+    function sortTable(columnIndex) {
+        const table = document.getElementById("wateringTable");
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const icon = table.tHead.rows[0].cells[columnIndex].querySelector(".sort-icon");
+        
+        // Determine sort direction
+        const direction = sortDirections[columnIndex] === 'asc' ? 'desc' : 'asc';
+        sortDirections[columnIndex] = direction;
+
+        // Sort rows based on the cell content
+        rows.sort((a, b) => {
+            const cellA = a.cells[columnIndex].innerText.trim();
+            const cellB = b.cells[columnIndex].innerText.trim();
+
+            // Determine if sorting numerically or as dates
+            if (columnIndex === 0) { // Date and Time
+                // Parse dates assuming they are in a consistent format
+                const dateA = new Date(cellA);
+                const dateB = new Date(cellB);
+                return direction === 'asc' ? dateA - dateB : dateB - dateA;
+            } else if (columnIndex === 1) { // Amount (ml)
+                const numA = cellA === 'N/A' ? 0 : parseFloat(cellA);
+                const numB = cellB === 'N/A' ? 0 : parseFloat(cellB);
+                return direction === 'asc' ? numA - numB : numB - numA;
+            } else {
+                // Fallback to string comparison
+                return direction === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+            }
+        });
+
+        // Remove existing rows
+        while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+        }
+
+        // Append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+
+        // Update sort icons
+        updateSortIcons(table, columnIndex, direction);
+    }
+
+    function updateSortIcons(table, sortedColumnIndex, direction) {
+        const headers = table.tHead.rows[0].cells;
+        for (let i = 0; i < headers.length; i++) {
+            const icon = headers[i].querySelector(".sort-icon");
+            if (i === sortedColumnIndex) {
+                // Update the icon based on sort direction
+                if (direction === 'asc') {
+                    icon.classList.remove('fa-sort', 'fa-sort-down');
+                    icon.classList.add('fa-sort-up');
+                } else {
+                    icon.classList.remove('fa-sort', 'fa-sort-up');
+                    icon.classList.add('fa-sort-down');
+                }
+            } else {
+                // Reset icons for unsorted columns
+                icon.classList.remove('fa-sort-up', 'fa-sort-down');
+                icon.classList.add('fa-sort');
+            }
+        }
+    }
+</script>
+
+<style>
+    /* Optional: Adjust the position of sort icons */
+    .sort-icon {
+        margin-left: 5px;
+        font-size: 0.8em;
+    }
+</style>
+{% endblock %}

@@ -15,7 +15,7 @@ fan_pin = Pin(13, Pin.OUT)  # Use GPIO 13 for fan control
 fan_pwm_pin = 14      # Use GPIO 14 for fan PWM control
 
 # Config
-test_mode = False # If True, then it will sleep for 5 seconds instead of 30 minutes
+test_mode = True # If True, then it will sleep for 5 seconds instead of 30 minutes
 sleep_time = 1800 if not test_mode else 5  # Sleep time in seconds (30 minutes)
 
 # MQTT
@@ -76,23 +76,56 @@ def read_dht22():
         print("Failed to read from DHT22 sensor:", e)
         return None, None
 
-# Function to read soil moisture
-def read_soil_moisture():
-    analog_value = adc.read()  # Read the raw ADC value
-    print("Raw ADC value:", analog_value)  # Add this line to print the raw value
-    analog_value = adc.read()  # Read the raw ADC value
+# Constants (Adjust these based on your sensor's calibration)
+DRY_SOIL = 800        # ADC value corresponding to dry soil
+WET_SOIL = 300        # ADC value corresponding to wet soil
+NUM_SAMPLES = 50      # Number of samples to average
 
-    # Ensure the value is within the correct bounds TEST
-#     if analog_value > DRY_SOIL:
-#         analog_value = DRY_SOIL
-#     elif analog_value < WET_SOIL:
-#         analog_value = WET_SOIL
+# Import necessary modules
+import time
 
-    # Properly scale the raw ADC value to a percentage
-    moisture_percent = ((DRY_SOIL - analog_value) / (DRY_SOIL - WET_SOIL)) * 100
+# Assuming 'adc' is your ADC object, initialized elsewhere
+# from your_adc_library import adc  # Uncomment and modify as needed
 
-    return analog_value
-    # return round(moisture_percent, 2) TEST
+def read_soil_moisture(return_percentage=False):
+    """
+    Reads soil moisture by averaging multiple ADC samples.
+
+    Args:
+        return_percentage (bool): If True, returns moisture as a percentage.
+                                   If False, returns the raw averaged ADC value.
+
+    Returns:
+        float: Moisture percentage or raw ADC value based on the argument.
+    """
+    total = 0
+    for i in range(NUM_SAMPLES):
+        analog_value = adc.read()  # Read the raw ADC value
+        #print(f"Sample {i+1}: Raw ADC value = {analog_value}")  # Debug: Print each sample
+        total += analog_value
+        # Optional: Add a small delay between samples to stabilize readings
+        # time.sleep(0.01)  # 10ms delay
+
+    average_analog = total / NUM_SAMPLES
+    print(f"Averaged ADC value: {average_analog}")  # Debug: Print averaged value
+
+    if return_percentage:
+        # Clamp the averaged value within the expected range
+        if average_analog > DRY_SOIL:
+            average_analog = DRY_SOIL
+        elif average_analog < WET_SOIL:
+            average_analog = WET_SOIL
+
+        # Scale the averaged ADC value to a percentage
+        moisture_percent = ((DRY_SOIL - average_analog) / (DRY_SOIL - WET_SOIL)) * 100
+        moisture_percent = round(moisture_percent, 2)  # Round to 2 decimal places
+
+        print(f"Soil Moisture: {moisture_percent}%")  # Debug: Print moisture percentage
+        return moisture_percent
+    else:
+        return average_analog  # Return the raw averaged ADC value
+
+
 
 
 def mqtt_callback(topic, msg):
@@ -113,13 +146,14 @@ def mqtt_callback(topic, msg):
         except ValueError:
             print("Invalid fan speed value received.")
 
-def publish_update():
+def publish_update(send=True):
     moisture = read_soil_moisture()
     temperature_ds = read_ds18b20()
     temperature_dht, humidity = read_dht22()
     try:   
         msg = f"{moisture:.2f}|{temperature_ds:.2f}|{temperature_dht:.2f}|{humidity:.2f}"
-        client.publish(topic_pub, msg.encode())  # Ensure message is encoded for MQTT
+        if send:
+            client.publish(topic_pub, msg.encode())  # Ensure message is encoded for MQTT
         print(f"Moisture: {moisture:.2f}, Soil temp: {temperature_ds:.2f}, Temp amb.: {temperature_dht}, Humidity amb.: {humidity}")
     except Exception as e:
         print("An error occurred:", e)
@@ -139,13 +173,20 @@ except OSError as e:
     sleep(5)
     reset()
 
-while True:
-    publish_update()
-    # Sleep for the specified interval
-    elapsed_sleep_time = 0
-    while elapsed_sleep_time < TOTAL_SLEEP_TIME:
-        client.check_msg()  # Check for incoming messages
-        sleep(SLEEP_INTERVAL)
-        elapsed_sleep_time += SLEEP_INTERVAL
+if not test_mode:
+    while True:
+        publish_update()
+        # Sleep for the specified interval
+        elapsed_sleep_time = 0
+        while elapsed_sleep_time < TOTAL_SLEEP_TIME:
+            client.check_msg()  # Check for incoming messages
+            sleep(SLEEP_INTERVAL)
+            elapsed_sleep_time += SLEEP_INTERVAL
+else:
+    while True:
+        publish_update(send=False)
+        sleep(2)
+        #client.check_msg()
+
 
 

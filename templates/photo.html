@@ -1,16 +1,28 @@
 {% extends "base.html" %}
 
+{% set active_menu = 'photo' %}
+
 {% block title %}Light Control{% endblock %}
 
 {% block content %}
+<div class="container mt-5">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col text-center">
+            <h1 class="display-4">Welcome to the Camera App</h1>
+            <p class="lead">Capture moments with a single click.</p>
+        </div>
+    </div>
 
-<body>
-    <h1>Welcome to the Camera App</h1>
-    <form action="/take_photo" method="post">
-        <button type="submit">Take Photo</button>
-    </form>
-</body>
-</html>
+    <!-- Take Photo Button -->
+    <div class="row justify-content-center mt-4">
+        <div class="col-auto">
+            <form action="/take_photo" method="post">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-camera mr-2"></i>Take Photo
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
-
-{% set active_menu = 'photo' %}

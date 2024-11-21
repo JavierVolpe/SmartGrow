@@ -23,7 +23,7 @@ class ShellyPlugMQTTClient:
         self.responses_lock = threading.Lock()
 
         # Connect to the MQTT broker
-        self.client.connect(Config.MQTT_BROKER, Config.MQTT_PORT, 60)
+        self.client.connect(Config.MQTT_BROKER_IP, Config.MQTT_BROKER_PORT, 60)
         # Start the MQTT client loop in a separate thread
         self.client.loop_start()
 

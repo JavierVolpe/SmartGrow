@@ -73,15 +73,18 @@
                                 Controls
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="/lights">Light control</a></li>
-                                <li><a class="dropdown-item" href="/remote_power">Remote power</a></li>
+                                <li><a class="nav-link {% if active_menu == 'fan_control' %} active-link {% endif %}" href="/fan_control">Fan control</a></li>
+                                <li><a class="nav-link {% if active_menu == 'smart_plug' %} active-link {% endif %}" href="{{ url_for('smart_plug') }}">Lights control</a></li>
+                                <li><a class="nav-link {% if active_menu == 'lights' %} active-link {% endif %}" href="/lights">WiZ Light control</a></li>
+                                <li><a class="nav-link {% if active_menu == 'remote_power' %} active-link {% endif %}" href="/remote_power">PC Remote power</a></li>
                             </ul>
                         </div>
 
                         <a class="nav-link {% if active_menu == 'photo' %} active-link {% endif %}" href="/photo">Camera</a>
                         <a class="nav-link {% if active_menu == 'gallery' %} active-link {% endif %}" href="/gallery">Gallery</a>
-                        <a class="nav-link {% if active_menu == 'fan_control' %} active-link {% endif %}" href="/fan_control">Fan control</a>
-                        <a class="nav-link {% if active_menu == 'smart_plug' %} active-link {% endif %}" href="{{ url_for('smart_plug') }}">Smart Plug</a>
+                        
+                        
+                        <a class="nav-link {% if active_menu == 'watering' %} active-link {% endif %}" href="/watering">Watering</a>
 
                         
                         <a class="nav-link" href="/logout">Logout</a>
