@@ -19,7 +19,7 @@ class Config:
     WIZLIGHT_IP = '192.168.87.102'
     REMOTE_PC_IP = '192.168.87.3'
     REMOTE_PC_MAC = '24:4b:fe:93:78:f8'
-    REMOTE_PC_USER = 'jvolp'
+    REMOTE_PC_USER = '<insert data>'
 
     # Image directory
     IMAGE_DIR = 'static'
@@ -28,8 +28,19 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     NUMBER_OF_ROWS = 24 # Number of rows to display in tables
 
-    REMOTE_MQTT_HOST = "localhost"
+    REMOTE_MQTT_HOST = "<insert data>"
     REMOTE_MQTT_PORT = 1883
     REMOTE_MQTT_TOPIC_WATERING = "javier/watering"
     REMOTE_MQTT_USERNAME = "growtent"
-    REMOTE_MQTT_PASSWORD = "G987rowtent."
+    REMOTE_MQTT_PASSWORD = "<insert data>"
+    REMOTE_MQTT_TOPIC_CONTROL = "javier/growcontrol"
+
+    # Shelly configurations
+    SHELLY_DEVICE_ID = 'shellyplusplugs-<insert data>'  # Replace with your device ID
+    SHELLY_RPC_TOPIC = f'{SHELLY_DEVICE_ID}/rpc'
+    SHELLY_RESPONSE_TOPIC = 'user_script/rpc'  # Topic where responses are published
+
+    # Notification Settings
+    CALLMEBOT_PHONE_NUMBER = '<insert data>'  # Replace with your phone number
+    CALLMEBOT_APIKEY = '<insert data>'  # Replace with your CallMeBot API key
+    CALLMEBOT_URL_TEMPLATE = 'https://api.callmebot.com/whatsapp.php?phone={phone_number}&text={message}&apikey={apikey}'
