@@ -8,7 +8,7 @@ def publish_mqtt_message(message, success_msg, error_msg):
     try:
         mqtt_client = mqtt.Client()
         mqtt_client.connect(Config.MQTT_BROKER_IP, Config.MQTT_BROKER_PORT, 60)
-        mqtt_client.publish("javier/growcontrol", message)
+        mqtt_client.publish(Config.MQTT_PUB_TOPIC, message)
         mqtt_client.disconnect()
         flash(success_msg, "success")
     except Exception as e:
