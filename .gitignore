@@ -5,3 +5,5 @@ lib/
 share/
 SmartGrow/
 static/
+log*.log
+logs/
