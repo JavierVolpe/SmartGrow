@@ -1,3 +1,7 @@
+import subprocess
+from config import Config
+import socket
+
 def is_valid_ip(ip):
     parts = ip.split('.')
     if len(parts) != 4:
@@ -28,7 +32,7 @@ def is_valid_mac(mac):
 def remote_shutdown_func(ip_address):
     try:
         # Attempt SSH connection with a timeout of 10 seconds
-        ssh_command = ["ssh", "-o", "ConnectTimeout=10", f"{remote_pc_user}@{ip_address}", "shutdown", "/s", "/t", "60"]
+        ssh_command = ["ssh", "-o", "ConnectTimeout=10", f"{Config.REMOTE_PC_USER}@{ip_address}", "shutdown", "/s", "/t", "60"]
         subprocess.run(ssh_command, check=True)
         return True
     except subprocess.CalledProcessError as e:
