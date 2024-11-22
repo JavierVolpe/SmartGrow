@@ -5,5 +5,8 @@ lib/
 share/
 SmartGrow/
 static/
-log*.log
+*.log
 logs/
+db/
+venv/
+__pycache__/
