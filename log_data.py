@@ -33,19 +33,25 @@ def create_table():
 def log_grow_data(client, userdata, message):
     query = """INSERT INTO growdata (date_time_str, moisture, temperature_ds, temperature_dht, humidity) VALUES (?,?,?,?,?)"""
     msg_str = message.payload.decode("utf-8")
+    #print("Message received:", msg_str)
     date_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    moisture, temperature_ds, temperature_dht, humidity = msg_str.split("|") 
-    #temperature_dht = temperature_dht.split(".")[0] # Remove the decimal part of the temperature value
-    #humidity = humidity.split(".")[0] # Remove the decimal part of the humidity value
-    temperature_dht = float(temperature_dht)
-    temperature_ds = float(temperature_ds)
-    humidity = float(humidity)
-    moisture = float(moisture)
-    data = (date_time_str, moisture, temperature_ds, temperature_dht, humidity)
+    if len(msg_str.split("|")) != 4:
+        print(f"Invalid message format received: {msg_str}")
+        return
+    else:
+        moisture, temperature_ds, temperature_dht, humidity = msg_str.split("|") 
+        #temperature_dht = temperature_dht.split(".")[0] # Remove the decimal part of the temperature value
+        #humidity = humidity.split(".")[0] # Remove the decimal part of the humidity value
+        temperature_dht = float(temperature_dht)
+        temperature_ds = float(temperature_ds)
+        humidity = float(humidity)
+        #moisture = float(moisture)
+        moisture = moisture.split(".")[0] # Remove the decimal part of the moisture value
+        data = (date_time_str, moisture, temperature_ds, temperature_dht, humidity)
 
-    print("date_time_str, moisture, temperature_ds, temperature_dht, humidity")
-    print(f"Data to be inserted: {data}")
-    print()
+        print("date_time_str, moisture, temperature_ds, temperature_dht, humidity")
+        print(f"Data to be inserted: {data}")
+        print()
 
     try:
         conn = sqlite3.connect(db_path)

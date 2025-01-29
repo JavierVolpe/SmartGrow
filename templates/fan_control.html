@@ -4,58 +4,71 @@
 
 {% block content %}
 <div class="container-fluid">
+  <!-- Fan Control Heading -->
+  <div class="row justify-content-center mt-4">
+      <div class="col-12 text-center">
+          <h2>Top Fan Control</h2>
+      </div>
+  </div>
+
+  <!-- Buttons to Control Fan -->
+  <div class="row justify-content-center my-4">
+      <div class="col-auto">
+          <form action="{{ url_for('start_fan') }}" method="post">
+              <button type="submit" class="btn btn-success">Start Fan</button>
+          </form>
+      </div>
+      <div class="col-auto">
+          <form action="{{ url_for('stop_fan') }}" method="post">
+              <button type="submit" class="btn btn-danger">Stop Fan</button>
+          </form>
+      </div>
+  </div>
+
+  <!-- Fan Speed Control Form -->
+  <div class="row justify-content-center my-4">
+      <div class="col-auto">
+          <form action="{{ url_for('set_fan_speed') }}" method="post">
+              <div class="input-group">
+                  <input type="number" name="fan_speed" min="0" max="100" class="form-control" placeholder="Fan Speed (%)" required>
+                  <div class="input-group-append">
+                      <button type="submit" class="btn btn-primary">Set Fan Speed</button>
+                  </div>
+              </div>
+          </form>
+      </div>
+  </div>
+
+
+
+
+
+  <div class="container-fluid">
     <!-- Fan Control Heading -->
     <div class="row justify-content-center mt-4">
         <div class="col-12 text-center">
-            <h2>Fan Control</h2>
+            <h2>Extra Fan</h2>
         </div>
     </div>
 
     <!-- Buttons to Control Fan -->
     <div class="row justify-content-center my-4">
         <div class="col-auto">
-            <form action="{{ url_for('start_fan') }}" method="post">
-                <button type="submit" class="btn btn-success">Start Fan</button>
+            <form action="{{ url_for('start_extra_fan') }}" method="post">
+                <button type="submit" class="btn btn-success">Start Extra Fan</button>
             </form>
         </div>
         <div class="col-auto">
-            <form action="{{ url_for('stop_fan') }}" method="post">
-                <button type="submit" class="btn btn-danger">Stop Fan</button>
+            <form action="{{ url_for('stop_extra_fan') }}" method="post">
+                <button type="submit" class="btn btn-danger">Stop Extra Fan</button>
             </form>
         </div>
     </div>
 
-    <!-- Fan Speed Control Form -->
-    <div class="row justify-content-center my-4">
-        <div class="col-auto">
-            <form action="{{ url_for('set_fan_speed') }}" method="post">
-                <div class="input-group">
-                    <input type="number" name="fan_speed" min="0" max="100" class="form-control" placeholder="Fan Speed (%)" required>
-                    <div class="input-group-append">
-                        <button type="submit" class="btn btn-primary">Set Fan Speed</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="row justify-content-center">
-          <div class="col-8">
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% endif %}
-    {% endwith %}
+
+
+
 
 </div>
 {% endblock %}

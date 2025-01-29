@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to your virtual environment
-VENV_PATH="/home/javier/SmartHome/SmartGrow/bin/activate"
+VENV_PATH="/home/javier/SmartHome/venv/bin/activate"
 
 # Path to your Python script
 SCRIPT_PATH="/home/javier/SmartHome/mqtt_plug_control.py"

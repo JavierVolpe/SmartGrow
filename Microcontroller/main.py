@@ -15,7 +15,7 @@ fan_pin = Pin(13, Pin.OUT)  # Use GPIO 13 for fan control
 fan_pwm_pin = 14      # Use GPIO 14 for fan PWM control
 
 # Config
-test_mode = True # If True, then it will sleep for 5 seconds instead of 30 minutes
+test_mode = False # If True, then it will sleep for 5 seconds instead of 30 minutes
 sleep_time = 1800 if not test_mode else 5  # Sleep time in seconds (30 minutes)
 
 # MQTT
@@ -187,6 +187,7 @@ else:
         publish_update(send=False)
         sleep(2)
         #client.check_msg()
+
 
 
 

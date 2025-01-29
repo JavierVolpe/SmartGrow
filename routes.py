@@ -407,6 +407,26 @@ def stop_fan():
         flash(f"Failed to stop fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
+# Route to handle the "Start Fan" button
+@app.route("/start_extra_fan", methods=["POST"])
+@login_required
+def start_extra_fan():
+    try:
+        publish_mqtt_message("start_extra_fan", "Extra Fan started successfully.", "Failed to start fan")
+    except Exception as e:
+        flash(f"Failed to start fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+# Route to handle the "Stop Fan" button
+@app.route("/stop_extra_fan", methods=["POST"])
+@login_required
+def stop_extra_fan():
+    try:
+        publish_mqtt_message("stop_extra_fan", "Extra Fan stopped successfully.", "Failed to stop fan")
+    except Exception as e:
+        flash(f"Failed to stop fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
 # Route to handle the "Set Fan Speed" form submission
 @app.route("/set_fan_speed", methods=["POST"])
 @login_required
@@ -426,6 +446,7 @@ def set_fan_speed():
     except Exception as e:
         flash(f"Failed to set fan speed. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
+
 
 
 # Route to handle Smart Plug Control Display

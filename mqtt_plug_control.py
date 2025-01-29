@@ -102,7 +102,7 @@ def main(action):
     # if Config.MQTT_USERNAME:
     #     client.username_pw_set(Config.MQTT_USERNAME, Config.MQTT_PASSWORD)
 
-    client.connect(Config.MQTT_BROKER, Config.MQTT_PORT, 60)
+    client.connect(Config.MQTT_BROKER_IP, Config.MQTT_BROKER_PORT, 60)
     client.loop_start()
 
     # Send the command

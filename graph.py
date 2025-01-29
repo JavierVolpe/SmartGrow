@@ -50,7 +50,7 @@ def graph_db_data(sensor_type):
             timestamp_str = str(row[0])[:19]
             timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
             timestamps.append(timestamp)
-            moisture_data.append(row[1])        # moisture
+            moisture_data.append(round(row[1]))        # moisture
             temperature_data.append(row[2])     # temperature_ds
             temp_dht.append(row[3])             # temperature_dht
             humidity_data.append(row[4])        # humidity
@@ -67,7 +67,9 @@ def graph_db_data(sensor_type):
     timestamp_nums = date2num(timestamps)
 
     # Create the plot
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(12, 8), dpi=150)
+                           #, constrained_layout=True)
+
     plt.style.use('dark_background')
 
     # Determine the data to plot based on the sensor type
@@ -131,19 +133,34 @@ def graph_db_data(sensor_type):
     max_y_position = max_value - y_range * 0.05
     min_y_position = min_value + y_range * 0.05
 
-    # Annotate the max value
+    # # Annotate the max value
+    # ax.annotate(f'Max: {max_value}',
+    #             xy=(max_time_num, max_value),
+    #             xytext=(max_time_num, max_y_position),
+    #             arrowprops=dict(facecolor=color, arrowstyle='->'),
+    #             ha='center', va='top', color=color, fontsize=10)
+
+    # # Annotate the min value
+    # ax.annotate(f'Min: {min_value}',
+    #             xy=(min_time_num, min_value),
+    #             xytext=(min_time_num, min_y_position),
+    #             arrowprops=dict(facecolor=color, arrowstyle='->'),
+    #             ha='center', va='bottom', color=color, fontsize=10)
+    
+        # Annotate the max value
     ax.annotate(f'Max: {max_value}',
                 xy=(max_time_num, max_value),
-                xytext=(max_time_num, max_y_position),
+                xytext=(max_time_num, max_value - y_range * 0.05),  # Position slightly below
                 arrowprops=dict(facecolor=color, arrowstyle='->'),
                 ha='center', va='top', color=color, fontsize=10)
 
     # Annotate the min value
     ax.annotate(f'Min: {min_value}',
                 xy=(min_time_num, min_value),
-                xytext=(min_time_num, min_y_position),
+                xytext=(min_time_num, min_value + y_range * 0.05),  # Position slightly above
                 arrowprops=dict(facecolor=color, arrowstyle='->'),
                 ha='center', va='bottom', color=color, fontsize=10)
+
 
     # Draw horizontal and vertical lines for max and min values
     ax.axhline(y=max_value, color=color, linestyle='--', alpha=0.5)
@@ -160,17 +177,22 @@ def graph_db_data(sensor_type):
 
     # Rotate x-axis labels and adjust layout
     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-    plt.subplots_adjust(bottom=0.3, top=0.85)  # Adjust top to give space for the title
+    #plt.subplots_adjust(bottom=0.3, top=0.85)  # Adjust top to give space for the title
 
     # Enable grid for better readability
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
 
+
+# Test
+    #fig.tight_layout()
+
+
     # Convert the plot to a base64-encoded string
     buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches='tight')
+    fig.savefig(buf, format="png")  # Removed bbox_inches='tight'
     data = base64.b64encode(buf.getvalue()).decode("ascii")
     plt.close(fig)  # Close the figure to free memory
-    return f"<img class='img-fluid' src='data:image/png;base64,{data}'/>"
+    return f"<img class='img-fluid graph-image' src='data:image/png;base64,{data}'/>"
 
 
 def get_last_reading():
@@ -185,7 +207,7 @@ def get_last_reading():
             temperature_ds = row[2]  # Temperature from DS sensor
             temp_dht = row[3]  # Temperature from DHT sensor
             humidity = row[4]  # Humidity from DHT sensor
-            moisture = row[1]  # Moisture level
+            moisture = round(row[1])  # Moisture level
 
             # Format the string for the latest readings
             last_reading = f"Last reading: {timestamp_str} - Temperature DHT: {temp_dht}°C - Humidity: {humidity}% - Temperature Soil: {temperature_ds}°C - Moisture: {moisture}%"
