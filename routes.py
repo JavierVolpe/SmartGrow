@@ -408,21 +408,21 @@ def stop_fan():
     return redirect(url_for("fan_control"))
 
 # Route to handle the "Start Fan" button
-@app.route("/start_extra_fan", methods=["POST"])
+@app.route("/start_bottom_fan", methods=["POST"])
 @login_required
-def start_extra_fan():
+def start_bottom_fan():
     try:
-        publish_mqtt_message("start_extra_fan", "Extra Fan started successfully.", "Failed to start fan")
+        publish_mqtt_message("start_bottom_fan", "Extra Fan started successfully.", "Failed to start fan")
     except Exception as e:
         flash(f"Failed to start fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
 # Route to handle the "Stop Fan" button
-@app.route("/stop_extra_fan", methods=["POST"])
+@app.route("/stop_bottom_fan", methods=["POST"])
 @login_required
-def stop_extra_fan():
+def stop_bottom_fan():
     try:
-        publish_mqtt_message("stop_extra_fan", "Extra Fan stopped successfully.", "Failed to stop fan")
+        publish_mqtt_message("stop_bottom_fan", "Extra Fan stopped successfully.", "Failed to stop fan")
     except Exception as e:
         flash(f"Failed to stop fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))

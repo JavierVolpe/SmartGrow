@@ -39,6 +39,18 @@ def graph_db_data(sensor_type):
         curs = conn.cursor()
         curs.execute(query)
         rows = curs.fetchall()
+                # If no records in the last 24 hours, fetch the last 24 records instead.
+        if not rows:
+            print("No records in the last 24 hours. Fetching last 24 records instead.")
+            fallback_query = """
+                SELECT g.date_time_str, g.moisture, g.temperature_ds, g.temperature_dht, g.humidity, g.id
+                FROM growdata g
+                ORDER BY g.date_time_str DESC
+                LIMIT 24;
+            """
+            curs.execute(fallback_query)
+            rows = curs.fetchall()
+            rows = rows[::-1]  # Reverse to ensure chronological order
 
         for row in rows:
             # row[0]: date_time_str
@@ -106,9 +118,13 @@ def graph_db_data(sensor_type):
     ax.fill_between(timestamp_nums, data_to_plot, color=color, alpha=0.1)
 
     # Adjust y-axis limits to focus on the relevant data range
+    # try:
     data_min = min(data_to_plot)
     data_max = max(data_to_plot)
     data_range = data_max - data_min
+    # except ValueError:
+    #     print("No data to plot.")
+    #     return ""
     buffer = data_range * 0.1  # 10% of the data range as buffer
 
     # Handle case where data_range is zero (all data points are the same)
