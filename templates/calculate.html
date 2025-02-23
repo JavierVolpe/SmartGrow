@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Age Calculator{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Weeks and Days Calculator</h1>
+    <form method="post" class="mb-4">
+        <div class="mb-3">
+            <label for="start_date" class="form-label">Enter the start date:</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ date_input }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Calculate</button>
+    </form>
+
+    {% if result %}
+        {% if result.error %}
+            <div class="alert alert-danger" role="alert">
+                {{ result.error }}
+            </div>
+        {% else %}
+            <div class="card">
+                <div class="card-header">
+                    Calculation Result
+                </div>
+                <div class="card-body">
+                    <p class="card-text">From <strong>{{ result.start_date }}</strong> to <strong>{{ result.today }}</strong>:</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">Total days: {{ result.total_days }}</li>
+                        <li class="list-group-item">Weeks: {{ result.weeks }}</li>
+                        <li class="list-group-item">Days: {{ result.days }}</li>
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
