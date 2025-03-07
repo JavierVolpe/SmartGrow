@@ -14,6 +14,8 @@ DS_PIN = 4               # Use GPIO 4 for DS18B20
 DHT_PIN = 5              # Use GPIO 5 for DHT22
 FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
+PUMP_PIN_NUM 	= 32	 # Use GPIO 32 for pump control
+
 
 MQTT_SERVER = "192.168.87.2"
 TOPIC_PUB = b"javier/growdata"
@@ -61,6 +63,14 @@ try:
     print("Extra fan initialized successfully.")
 except Exception as e:
     print("Extra fan initialization failed:", e)
+    
+    
+# Pump Setup
+try:
+    pump = Pin(PUMP_PIN_NUM, Pin.OUT)
+    print("Pump initialized successfully.")
+except Exception as e:
+    print("Pump initialization failed:", e)
 
 # ------------------------------
 # Sensor & Actuator Functions
@@ -165,6 +175,12 @@ def mqtt_callback(topic, msg):
         extra_fan.on()
     elif decoded_msg == "stop_bottom_fan":
         extra_fan.off()
+    elif decoded_msg == "start_pump":
+        pump.on()
+        print("Starting pump")
+    elif decoded_msg == "stop_pump":
+        pump.off()
+        print("Stopping pump")
     elif decoded_msg == "reset":
         reset()
     elif decoded_msg.startswith("fan_speed_"):
