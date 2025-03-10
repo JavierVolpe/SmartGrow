@@ -26,7 +26,10 @@ This is a smart system designed to monitor and control a grow house using IoT de
 - SQLite
 - Paho MQTT
 - Matplotlib
-- MicroPython on ESP32
+- MicroPython on ESP32 
+- DS18B20, DHT22, and an analog soil moisture sensor.
+- 5V Pump
+- 
 
 ### Installing Dependencies
 
@@ -82,9 +85,9 @@ This is a smart system designed to monitor and control a grow house using IoT de
 
 ## MQTT Topics
 
-- **Publishing Sensor Data**: `javier/growdata`
-- **Device Control**: `javier/growcontrol`
-- **Watering Event**: `javier/growwatering`
+- **Publishing Sensor Data**: `SmartGrow/growdata`
+- **Device Control**: `SmartGrow/growcontrol`
+- **Watering Event**: `SmartGrow/growwatering`
 
 ## Contributing
 
