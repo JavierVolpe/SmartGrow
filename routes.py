@@ -329,19 +329,6 @@ def watering():
             )
             conn.commit()
             conn.close()
-
-            # # Publish the watering event to MQTT
-            # if amount_ml:
-            #     payload = f"Watered with {amount_ml} ml at {time_now}"
-            # else:
-            #     payload = f"Watered with no amount at {time_now}"
-            
-            # # Send MQTT message
-            # try:
-            #     mqtt_client.publish(Config.REMOTE_MQTT_TOPIC_WATERING, payload)
-            #     flash(f"MQTT Correct: {payload}")
-            # except:
-            #     flash("Error sending MQTT")
             
             # Flash a success message
             flash("Watering record added successfully.", "success")
@@ -427,6 +414,27 @@ def stop_bottom_fan():
         flash(f"Failed to stop fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
+
+# Route to handle the "Start Pump" button
+@app.route("/start_pump", methods=["POST"])
+@login_required
+def start_pump():
+    try:
+        publish_mqtt_message("start_pump", "Pump started successfully.", "Failed to start Pump")
+    except Exception as e:
+        flash(f"Failed to start Pump. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+# Route to handle the "Stop Pump" button
+@app.route("/stop_pump", methods=["POST"])
+@login_required
+def stop_pump():
+    try:
+        publish_mqtt_message("stop_pump", "Pump stopped successfully.", "Failed to stop Pump")
+    except Exception as e:
+        flash(f"Failed to stop Pump. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
 # Route to handle the "Set Fan Speed" form submission
 @app.route("/set_fan_speed", methods=["POST"])
 @login_required
@@ -476,3 +484,33 @@ def smart_plug():
         # Get the next scheduled status change
         schedule_info = mqtt_client.get_next_status_change()
         return render_template("smart_plug.html", status=status, schedule_info=schedule_info)
+    
+
+@app.route('/calculate', methods=['GET', 'POST'])
+def calculate():
+    # On GET: use today's date by default and perform the calculation immediately.
+    # On POST: use the user-provided date.
+    date_input = request.form.get('start_date', Config.PLANTATION_DATE)
+
+    try:
+        start_date = datetime.strptime(date_input, '%Y-%m-%d')
+        today = datetime.today()
+        delta = today - start_date
+        total_days = delta.days
+        weeks = total_days // 7
+        days = total_days % 7
+
+        result = {
+            'weeks': weeks,
+            'days': days,
+            'total_days': total_days,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'today': today.strftime('%Y-%m-%d')
+        }
+    except ValueError:
+        result = {'error': 'Invalid date format. Please use YYYY-MM-DD.'}
+        
+    return render_template('calculate.html', result=result, date_input=date_input)
+
+if __name__ == '__main__':
+    app.run(debug=True)
