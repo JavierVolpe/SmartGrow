@@ -9,5 +9,4 @@ static/
 logs/
 db/
 venv/
-__pycache__/
 config.py
