@@ -164,31 +164,57 @@ def read_soil_moisture(return_percentage=True):
 def mqtt_callback(topic, msg):
     """Handle incoming MQTT messages."""
     decoded_msg = msg.decode()
-    print(f"Received message: {decoded_msg} on topic: {topic.decode()}")
-    if decoded_msg == "send_update":
-        publish_update()
-    elif decoded_msg == "start_fan":
-        set_fan_speed(100)
-    elif decoded_msg == "stop_fan":
-        set_fan_speed(0)
-    elif decoded_msg == "start_bottom_fan":
-        extra_fan.on()
-    elif decoded_msg == "stop_bottom_fan":
-        extra_fan.off()
-    elif decoded_msg == "start_pump":
-        pump.on()
-        print("Starting pump")
-    elif decoded_msg == "stop_pump":
-        pump.off()
-        print("Stopping pump")
-    elif decoded_msg == "reset":
-        reset()
-    elif decoded_msg.startswith("fan_speed_"):
-        try:
-            speed_val = int(decoded_msg.split("_")[2])
-            set_fan_speed(speed_val)
-        except (IndexError, ValueError):
-            print("Invalid fan speed command received.")
+    topic_str = topic.decode()
+    print(f"Received message: {decoded_msg} on topic: {topic_str}")
+
+    try:
+        if decoded_msg == "send_update":
+            publish_update()
+            feedback = "Update sent."
+        elif decoded_msg == "start_fan":
+            set_fan_speed(100)
+            feedback = "Fan started at speed 100."
+        elif decoded_msg == "stop_fan":
+            set_fan_speed(0)
+            feedback = "Fan stopped."
+        elif decoded_msg == "start_bottom_fan":
+            extra_fan.on()
+            feedback = "Bottom fan started."
+        elif decoded_msg == "stop_bottom_fan":
+            extra_fan.off()
+            feedback = "Bottom fan stopped."
+        elif decoded_msg == "start_pump":
+            pump.on()
+            print("Starting pump")
+            feedback = "Pump started."
+        elif decoded_msg == "stop_pump":
+            pump.off()
+            print("Stopping pump")
+            feedback = "Pump stopped."
+        elif decoded_msg == "reset":
+            feedback = "Resetting"
+            client.publish(TOPIC_PUB, feedback.encode())
+            print(feedback)
+            time.sleep(1)
+            reset()
+            return
+        elif decoded_msg.startswith("fan_speed_"):
+            try:
+                speed_val = int(decoded_msg.split("_")[2])
+                set_fan_speed(speed_val)
+                feedback = f"Fan speed set to {speed_val}."
+            except (IndexError, ValueError):
+                print("Invalid fan speed command received.")
+                return
+        else:
+            print("Unknown command received.")
+            return
+    except Exception as e:
+        feedback = f"Error executing command: {e}"
+
+    client.publish(TOPIC_PUB, feedback.encode())
+    print(feedback)
+
 
 def publish_update(send=True):
     """Publish sensor data to the MQTT server."""
@@ -254,3 +280,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
