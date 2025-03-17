@@ -512,5 +512,139 @@ def calculate():
         
     return render_template('calculate.html', result=result, date_input=date_input)
 
+## Test area
+from cron_manager import CronManager
+
+# Initialize the CronManager
+cm = CronManager()
+
+@app.route('/cron_list')
+@login_required
+def cron_list():
+
+
+    """
+    The index page displays the current cron jobs with options to edit or delete.
+    """
+    jobs = cm.get_jobs()
+    return render_template('cron_list.html', cron_jobs=jobs, active_menu='cron')
+
+@app.route('/add', methods=['GET', 'POST'])
+@login_required
+def add_task():
+    """
+    A page to add a new cron job interactively.
+    Allows selection between a standard cron job or a special cron job (e.g. @reboot).
+    """
+    if request.method == 'POST':
+        job_type = request.form.get('job_type', 'standard')
+        if job_type == 'standard':
+            minute = request.form.get('minute', '*').strip() or '*'
+            hour = request.form.get('hour', '*').strip() or '*'
+            day_of_month = request.form.get('day_of_month', '*').strip() or '*'
+            month = request.form.get('month', '*').strip() or '*'
+            day_of_week = request.form.get('day_of_week', '*').strip() or '*'
+            command = request.form.get('command', '').strip()
+            if not command:
+                flash('Command cannot be empty for standard job.', 'danger')
+                return redirect(url_for('add_task'))
+            job_line = f"{minute} {hour} {day_of_month} {month} {day_of_week} {command}"
+        else:  # special job
+            special_schedule = request.form.get('special_schedule', '').strip()
+            command_special = request.form.get('command_special', '').strip()
+            if not special_schedule:
+                flash('Special schedule cannot be empty.', 'danger')
+                return redirect(url_for('add_task'))
+            if not command_special:
+                flash('Command cannot be empty for special job.', 'danger')
+                return redirect(url_for('add_task'))
+            job_line = f"{special_schedule} {command_special}"
+        try:
+            cm.add_job(job_line)
+            flash('Cron job added successfully.', 'success')
+            return redirect(url_for('cron_list'))
+        except Exception as e:
+            flash(f'Error adding job: {e}', 'danger')
+            return redirect(url_for('add_task'))
+    return render_template('add_task.html', active_menu='cron')
+
+@app.route('/edit/<int:index>', methods=['GET', 'POST'])
+@login_required
+def edit_task(index):
+    """
+    A page to edit an existing cron job.
+    If the job uses a special schedule (e.g. @reboot), a single input field is provided.
+    Otherwise, the standard interactive fields are shown.
+    """
+    jobs = cm.get_jobs()
+    if index < 0 or index >= len(jobs):
+        flash('Invalid job index.', 'danger')
+        return redirect(url_for('cron_list'))
+
+    current_job = jobs[index]
+    # Determine if the job is "special" (e.g. starts with '@' or not in standard format)
+    parts = current_job.split()
+    is_special = current_job.startswith('@') or len(parts) < 6
+
+    if request.method == 'POST':
+        if is_special:
+            job_line = request.form.get('job_line', '').strip()
+            if not job_line:
+                flash('Cron job line cannot be empty.', 'danger')
+                return redirect(url_for('edit_task', index=index))
+        else:
+            minute = request.form.get('minute', '').strip()
+            hour = request.form.get('hour', '').strip()
+            day_of_month = request.form.get('day_of_month', '').strip()
+            month = request.form.get('month', '').strip()
+            day_of_week = request.form.get('day_of_week', '').strip()
+            command = request.form.get('command', '').strip()
+            if not command:
+                flash('Command cannot be empty.', 'danger')
+                return redirect(url_for('edit_task', index=index))
+            job_line = f"{minute} {hour} {day_of_month} {month} {day_of_week} {command}"
+        try:
+            cm.update_job_by_index(index, job_line)
+            flash('Cron job updated successfully.', 'success')
+            return redirect(url_for('cron_list'))
+        except Exception as e:
+            flash(f'Error updating job: {e}', 'danger')
+            return redirect(url_for('edit_task', index=index))
+
+    if is_special:
+        # For special jobs, pass the whole line
+        return render_template('edit_task.html',
+                               index=index,
+                               is_special=True,
+                               job_line=current_job,
+                               active_menu='cron')
+    else:
+        # Standard job: split into 5 cron fields and the command
+        cron_parts = parts[:5]
+        command_part = " ".join(parts[5:])
+        return render_template('edit_task.html',
+                               index=index,
+                               is_special=False,
+                               minute=cron_parts[0],
+                               hour=cron_parts[1],
+                               day_of_month=cron_parts[2],
+                               month=cron_parts[3],
+                               day_of_week=cron_parts[4],
+                               command=command_part,
+                               active_menu='cron')
+
+@app.route('/delete/<int:index>', methods=['POST'])
+@login_required
+def delete_task(index):
+    """
+    Delete a cron job by its index.
+    """
+    try:
+        cm.remove_job_by_index(index)
+        flash('Cron job deleted successfully.', 'success')
+    except Exception as e:
+        flash(f'Error deleting job: {e}', 'danger')
+    return redirect(url_for('cron_list'))
+
 if __name__ == '__main__':
     app.run(debug=True)

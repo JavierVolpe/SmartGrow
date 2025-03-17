@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Add Cron Job{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Add Cron Job</h1>
+    <form method="post">
+        <div class="mb-3">
+            <label class="form-label">Job Type</label>
+            <div>
+                <input type="radio" id="job_type_standard" name="job_type" value="standard" checked>
+                <label for="job_type_standard">Standard</label>
+                &nbsp;&nbsp;
+                <input type="radio" id="job_type_special" name="job_type" value="special">
+                <label for="job_type_special">Special (@reboot, etc.)</label>
+            </div>
+        </div>
+
+        <!-- Standard Job Fields -->
+        <div id="standard-fields">
+            <div class="mb-3">
+                <label for="minute" class="form-label">Minute</label>
+                <input type="text" class="form-control" id="minute" name="minute" placeholder="*">
+            </div>
+            <div class="mb-3">
+                <label for="hour" class="form-label">Hour</label>
+                <input type="text" class="form-control" id="hour" name="hour" placeholder="*">
+            </div>
+            <div class="mb-3">
+                <label for="day_of_month" class="form-label">Day of Month</label>
+                <input type="text" class="form-control" id="day_of_month" name="day_of_month" placeholder="*">
+            </div>
+            <div class="mb-3">
+                <label for="month" class="form-label">Month</label>
+                <input type="text" class="form-control" id="month" name="month" placeholder="*">
+            </div>
+            <div class="mb-3">
+                <label for="day_of_week" class="form-label">Day of Week</label>
+                <input type="text" class="form-control" id="day_of_week" name="day_of_week" placeholder="*">
+            </div>
+            <div class="mb-3">
+                <label for="command" class="form-label">Command</label>
+                <input type="text" class="form-control" id="command" name="command" placeholder="/path/to/your/script.sh">
+            </div>
+        </div>
+
+        <!-- Special Job Fields -->
+        <div id="special-fields" style="display: none;">
+            <div class="mb-3">
+                <label for="special_schedule" class="form-label">Special Schedule (e.g. @reboot)</label>
+                <input type="text" class="form-control" id="special_schedule" name="special_schedule" placeholder="@reboot">
+            </div>
+            <div class="mb-3">
+                <label for="command_special" class="form-label">Command</label>
+                <input type="text" class="form-control" id="command_special" name="command_special" placeholder="/path/to/your/script.sh">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Add Job</button>
+        <a href="{{ url_for('cron_list') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const standardFields = document.getElementById('standard-fields');
+    const specialFields = document.getElementById('special-fields');
+    const jobTypeRadios = document.getElementsByName('job_type');
+
+    function toggleFields() {
+        if (document.getElementById('job_type_standard').checked) {
+            standardFields.style.display = 'block';
+            specialFields.style.display = 'none';
+        } else {
+            standardFields.style.display = 'none';
+            specialFields.style.display = 'block';
+        }
+    }
+    jobTypeRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleFields);
+    });
+    toggleFields();
+});
+</script>
+{% endblock %}

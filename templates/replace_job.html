@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Age Calculator{% endblock %}
+
+{% block content %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Replace Cron Job</title>
+</head>
+<body>
+    <h1>Replace Cron Job</h1>
+    <form method="post">
+        <label for="job_pattern">Job Pattern to Replace:</label>
+        <input type="text" name="job_pattern" id="job_pattern" placeholder="Enter a part of the job to replace">
+        <br><br>
+        <label for="new_job_line">New Cron Job Line:</label>
+        <input type="text" name="new_job_line" id="new_job_line" placeholder="e.g. 15 4 * * * /path/to/new_script.sh">
+        <br><br>
+        <button type="submit">Replace Job</button>
+    </form>
+    <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+</body>
+{% endblock %}
