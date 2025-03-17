@@ -5,6 +5,7 @@ import esp32
 import dht
 import onewire
 import ds18x20
+import urequests  # New import for OTA updates
 
 # ------------------------------
 # Configuration & Constants
@@ -16,7 +17,6 @@ FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM 	= 32	 # Use GPIO 32 for pump control
 
-
 MQTT_SERVER = "192.168.87.2"
 TOPIC_PUB = b"javier/growdata"
 TOPIC_SUB = b"javier/growcontrol"
@@ -25,6 +25,9 @@ DRY_SOIL = 800  # ADC value in dry soil
 WET_SOIL = 300  # ADC value in wet soil
 NUM_SAMPLES = 50
 RETURN_PERCENTAGE = False
+
+# OTA update default URL (change to your update server URL)
+OTA_DEFAULT_URL = "http://192.168.87.2/ota/main.py"  # New OTA constant
 
 # Mode configuration
 TEST_MODE = False
@@ -64,7 +67,6 @@ try:
 except Exception as e:
     print("Extra fan initialization failed:", e)
     
-    
 # Pump Setup
 try:
     pump = Pin(PUMP_PIN_NUM, Pin.OUT)
@@ -86,8 +88,6 @@ def set_fan_speed(speed_percent):
         print(f"Fan speed set to {speed_percent}%")
     else:
         print("Invalid fan speed percentage. Must be between 0 and 100.")
-
-
 
 def read_ds18b20():
     """Read temperature from DS18B20 sensor by averaging multiple readings."""
@@ -158,6 +158,42 @@ def read_soil_moisture(return_percentage=True):
         return average_adc
 
 # ------------------------------
+# OTA Update Function
+# ------------------------------
+
+def perform_ota_update(url):
+    """Perform OTA update by downloading new code from the given URL and writing it to main.py."""
+    try:
+        print("Starting OTA update from", url)
+        response = urequests.get(url)
+        if response.status_code == 200:
+            new_code = response.text
+
+            # Check if the new code compiles without syntax errors
+            try:
+                compile(new_code, "main.py", "exec")
+            except Exception as e:
+                print("New code failed to compile:", e)
+                client.publish(TOPIC_PUB, "OTA update failed. Syntax error in new code.".encode())
+                response.close()
+                return
+
+            with open("main.py", "w") as f:
+                f.write(new_code)
+            print("OTA update successful. Rebooting now...")
+            client.publish(TOPIC_PUB, "OTA update successful. Rebooting...".encode())
+            time.sleep(2)
+            reset()
+        else:
+            print("Failed to download update. HTTP Status:", response.status_code)
+            client.publish(TOPIC_PUB, "OTA update failed. HTTP error.".encode())
+        response.close()
+    except Exception as e:
+        print("OTA update failed with error:", e)
+        client.publish(TOPIC_PUB, "OTA update failed. Exception occurred.".encode())
+
+
+# ------------------------------
 # MQTT Functions
 # ------------------------------
 
@@ -206,6 +242,14 @@ def mqtt_callback(topic, msg):
             except (IndexError, ValueError):
                 print("Invalid fan speed command received.")
                 return
+        elif decoded_msg.startswith("ota_update"):
+            # Expecting command format: "ota_update" or "ota_update|<url>"
+            print("Starting OTA update")
+            parts = decoded_msg.split("|")
+            update_url = parts[1] if len(parts) > 1 else OTA_DEFAULT_URL
+            perform_ota_update(update_url)
+            # perform_ota_update handles feedback and device reset; exit the callback.
+            return
         else:
             print("Unknown command received.")
             return
@@ -214,7 +258,6 @@ def mqtt_callback(topic, msg):
 
     client.publish(TOPIC_PUB, feedback.encode())
     print(feedback)
-
 
 def publish_update(send=True):
     """Publish sensor data to the MQTT server."""
@@ -225,7 +268,7 @@ def publish_update(send=True):
     
     if temperature_dht > 30:
         extra_fan.on()
-        print(f"It was too warm({current_temp[0]}), so the fan is on now")
+        print(f"It was too warm, so the fan is on now")
         
     # If any sensor reading failed, skip the update
     if None in (moisture, temperature_ds, temperature_dht, humidity):
@@ -243,7 +286,6 @@ def publish_update(send=True):
             reset()
     else:
         print(f"NOT Publishing update: {msg}")
-
 
 def sleep_and_check_messages(total_sleep_time, sleep_interval):
     """Sleep in intervals while checking for incoming MQTT messages."""
@@ -271,16 +313,9 @@ def main():
         reset()
     
     while True:
-
         publish_update(send=SEND_UPDATE)
         sleep_and_check_messages(TOTAL_SLEEP_TIME, SLEEP_INTERVAL)
-        
-
-
 
 if __name__ == "__main__":
     main()
-
-
-
 
