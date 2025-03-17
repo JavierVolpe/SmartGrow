@@ -5,7 +5,23 @@ import esp32
 import dht
 import onewire
 import ds18x20
-import urequests  # New import for OTA updates
+import urequests  # For OTA updates
+
+# ------------------------------
+# Custom Logging Setup
+# ------------------------------
+orig_print = print
+log_buffer = []
+
+def my_print(*args, **kwargs):
+    message = " ".join(str(arg) for arg in args)
+    log_buffer.append(message)
+    if len(log_buffer) > 50:
+        log_buffer.pop(0)
+    orig_print(*args, **kwargs)
+
+# Override the global print function so all prints get logged
+print = my_print
 
 # ------------------------------
 # Configuration & Constants
@@ -15,7 +31,7 @@ DS_PIN = 4               # Use GPIO 4 for DS18B20
 DHT_PIN = 5              # Use GPIO 5 for DHT22
 FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
-PUMP_PIN_NUM 	= 32	 # Use GPIO 32 for pump control
+PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
 
 MQTT_SERVER = "192.168.87.2"
 TOPIC_PUB = b"javier/growdata"
@@ -27,7 +43,7 @@ NUM_SAMPLES = 50
 RETURN_PERCENTAGE = False
 
 # OTA update default URL (change to your update server URL)
-OTA_DEFAULT_URL = "http://192.168.87.2/ota/main.py"  # New OTA constant
+OTA_DEFAULT_URL = "http://192.168.87.2/ota/main.py"
 
 # Mode configuration
 TEST_MODE = False
@@ -192,7 +208,6 @@ def perform_ota_update(url):
         print("OTA update failed with error:", e)
         client.publish(TOPIC_PUB, "OTA update failed. Exception occurred.".encode())
 
-
 # ------------------------------
 # MQTT Functions
 # ------------------------------
@@ -244,11 +259,14 @@ def mqtt_callback(topic, msg):
                 return
         elif decoded_msg.startswith("ota_update"):
             # Expecting command format: "ota_update" or "ota_update|<url>"
-            print("Starting OTA update")
             parts = decoded_msg.split("|")
             update_url = parts[1] if len(parts) > 1 else OTA_DEFAULT_URL
             perform_ota_update(update_url)
-            # perform_ota_update handles feedback and device reset; exit the callback.
+            return
+        elif decoded_msg == "get_log":
+            log_text = "\n".join(log_buffer)
+            client.publish(TOPIC_PUB, log_text.encode())
+            print("Sent last 50 log lines.")
             return
         else:
             print("Unknown command received.")
@@ -268,7 +286,7 @@ def publish_update(send=True):
     
     if temperature_dht > 30:
         extra_fan.on()
-        print(f"It was too warm, so the fan is on now")
+        print("It was too warm, so the fan is on now")
         
     # If any sensor reading failed, skip the update
     if None in (moisture, temperature_ds, temperature_dht, humidity):
@@ -318,4 +336,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
