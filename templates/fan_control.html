@@ -86,7 +86,21 @@
             </form>
         </div>
     </div>
-
+    <div class="container-fluid">
+        <!-- Reset Heading -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 text-center">
+                <h2>Reset ESP32 </h2>
+            </div>
+        </div>
+    <!-- Buttons to Reset ESP32 -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            <form action="{{ url_for('reset_esp') }}" method="post">
+                <button type="submit" class="btn btn-danger">Reset ESP32 </button>
+            </form>
+        </div>
+    </div>
 
 
 
