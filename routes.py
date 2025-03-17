@@ -646,5 +646,19 @@ def delete_task(index):
         flash(f'Error deleting job: {e}', 'danger')
     return redirect(url_for('cron_list'))
 
+
+
+## ESP32 control
+# Route to handle the "Stop Pump" button
+@app.route("/reset_esp", methods=["POST"])
+@login_required
+def reset_esp():
+    try:
+        publish_mqtt_message("reset", "ESP32 reset sent", "Failed to send reset")
+    except Exception as e:
+        flash(f"Failed to send reset Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+
 if __name__ == '__main__':
     app.run(debug=True)
