@@ -34,9 +34,9 @@ EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
 
 MQTT_SERVER = "192.168.87.2"
-TOPIC_PUB = b"javier/growdata"
-TOPIC_SUB = b"javier/growcontrol"
-
+TOPIC_PUB = b"grow/data"
+TOPIC_SUB = b"grow/control"
+TOPIC_STATUS = b"grow/status"
 DRY_SOIL = 800  # ADC value in dry soil
 WET_SOIL = 300  # ADC value in wet soil
 NUM_SAMPLES = 50
@@ -244,7 +244,7 @@ def mqtt_callback(topic, msg):
             feedback = "Pump stopped."
         elif decoded_msg == "reset":
             feedback = "Resetting"
-            client.publish(TOPIC_PUB, feedback.encode())
+            client.publish(TOPIC_STATUS, feedback.encode())
             print(feedback)
             time.sleep(1)
             reset()
@@ -265,7 +265,7 @@ def mqtt_callback(topic, msg):
             return
         elif decoded_msg == "get_log":
             log_text = "\n".join(log_buffer)
-            client.publish(TOPIC_PUB, log_text.encode())
+            client.publish(TOPIC_STATUS, log_text.encode())
             print("Sent last 50 log lines.")
             return
         else:
@@ -274,7 +274,7 @@ def mqtt_callback(topic, msg):
     except Exception as e:
         feedback = f"Error executing command: {e}"
 
-    client.publish(TOPIC_PUB, feedback.encode())
+    client.publish(TOPIC_STATUS, feedback.encode())
     print(feedback)
 
 def publish_update(send=True):
@@ -317,22 +317,39 @@ def sleep_and_check_messages(total_sleep_time, sleep_interval):
 # Main Loop
 # ------------------------------
 
+from machine import WDT
+
+# Initialize the watchdog timer with a 60-second timeout
+wdt = WDT(timeout=60000)  # 60 seconds
+
 def main():
     global client
-    client = MQTTClient("0001", MQTT_SERVER)
-    try:
-        client.set_callback(mqtt_callback)
-        client.connect()
-        client.subscribe(TOPIC_SUB)
-        print("Connected to MQTT broker and subscribed to topic.")
-    except OSError as e:
-        print("Error connecting to MQTT broker:", e)
-        time.sleep(5)
-        reset()
-    
     while True:
-        publish_update(send=SEND_UPDATE)
-        sleep_and_check_messages(TOTAL_SLEEP_TIME, SLEEP_INTERVAL)
+        try:
+            client = MQTTClient("0001", MQTT_SERVER)
+            client.set_callback(mqtt_callback)
+            client.connect()
+            client.subscribe(TOPIC_SUB)
+            print("Connected to MQTT broker and subscribed to topic.")
+            break  # Exit loop once connected successfully
+        except OSError as e:
+            print("Error connecting to MQTT broker:", e)
+            time.sleep(5)  # Wait before retrying
+    while True:
+        # Feed the watchdog timer in each cycle to avoid reset if the loop is healthy.
+        wdt.feed()
+        try:
+            publish_update(send=SEND_UPDATE)
+            sleep_and_check_messages(TOTAL_SLEEP_TIME, SLEEP_INTERVAL)
+        except Exception as e:
+            print("Exception in main loop:", e)
+            # Optionally, add reconnection logic here
+            try:
+                client.disconnect()
+            except:
+                pass
+            time.sleep(2)
+            reset()  # Reset device if an unexpected exception occurs
 
 if __name__ == "__main__":
     main()
