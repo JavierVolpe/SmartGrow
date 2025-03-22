@@ -3,7 +3,7 @@ import os
 import sqlite3
 import asyncio
 from datetime import datetime
-
+import requests
 # Third-party imports
 from flask import render_template, request, redirect, url_for, flash, session
 from flask_login import (
@@ -29,6 +29,14 @@ from utils import (
 from turn_lights import control_wiz_light, get_light_status
 from graph import graph_db_data, get_last_reading
 from smart_plug import mqtt_client
+
+
+
+
+
+
+
+
 
 
 # Load user from database
@@ -152,25 +160,39 @@ def lights():
 @app.route("/take_photo", methods=["POST"])
 @login_required
 def take_photo():
-    # Use the format for filenames that works well with the filesystem and Flask static files
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    photo_filename = f"{timestamp}.jpg"
-    photo_path = f"/home/javier/SmartHome/static/{photo_filename}"  # Save photo in the static/images folder
+    try:
+        # 1. Trigger the Raspberry Pi to capture a photo
+        response = requests.post(Config.PI_CAPTURE_URL)
+        response.raise_for_status()
+        data = response.json()
+        photo_filename = data.get("filename")
+        if not photo_filename:
+            flash("No photo filename returned by the camera API.")
+            return redirect(url_for("photo"))
+        
+        # 2. Download the captured photo from the Raspberry Pi's static endpoint
+        photo_url = f"{Config.PI_STATIC_URL}/{photo_filename}"
+        r = requests.get(photo_url)
+        r.raise_for_status()
 
-    # Take the photo and save it
-    os.system(f"rpicam-jpeg -o {photo_path} --rotation 180")
-
-    # Redirect to show_photo with the correct static URL
-    return redirect(url_for("show_photo", photo_filename=photo_filename))
+        # 3. Save the photo locally on the Linux VM so that gallery and slideshow work
+        local_photo_path = os.path.join(Config.LOCAL_STATIC_DIR, photo_filename)
+        with open(local_photo_path, "wb") as f:
+            f.write(r.content)
+        
+        # 4. Redirect to the show_photo route with the new filename
+        return redirect(url_for("show_photo", photo_filename=photo_filename))
+    except requests.RequestException as e:
+        flash(f"Error capturing photo: {e}")
+        return redirect(url_for("photo"))
 
 
 @app.route("/show_photo")
 @login_required
 def show_photo():
-    # Get the filename of the photo
+    # Get the filename from query parameters
     photo_filename = request.args.get("photo_filename")
-
-    # Pass the correct URL for the static photo
+    # Build the URL to the static file on the Linux VM
     photo_url = url_for("static", filename=f"{photo_filename}")
     return render_template("show_photo.html", photo_url=photo_url)
 
@@ -186,26 +208,25 @@ def photo():
 @app.route("/gallery/page/<int:page>", methods=["GET", "POST"])
 @login_required
 def gallery(page):
+    # List images from the local static directory
     images = sorted(
-        [img for img in os.listdir(Config.IMAGE_DIR) if not img.startswith(".")], reverse=True
-    )  # Exclude hidden files
+        [img for img in os.listdir(Config.LOCAL_STATIC_DIR) if not img.startswith(".")],
+        reverse=True
+    )
     filtered_images = images
 
-    # Filter images based on date in the filename (assuming format YYYYMMDD_HHMMSS)
+    # Optionally filter images by date using the filename (YYYYMMDD)
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
-
     if start_date and end_date:
         filtered_images = [img for img in images if start_date <= img[:8] <= end_date]
 
-    # Pagination logic
     images_per_page = 12
     total_images = len(filtered_images)
     start_index = (page - 1) * images_per_page
     end_index = start_index + images_per_page
     paginated_images = filtered_images[start_index:end_index]
 
-    # Determine if there are previous and next pages
     has_prev = page > 1
     has_next = end_index < total_images
 
@@ -217,37 +238,32 @@ def gallery(page):
         has_next=has_next,
     )
 
-
 @app.route("/slideshow/<filename>")
 @login_required
 def slideshow(filename):
-    # Get the list of images, excluding hidden files
+    # Get the list of images from the local static folder
     images = [
-        img for img in sorted(os.listdir(Config.IMAGE_DIR)) if not img.startswith(".")
-    ]  # Exclude hidden files
+        img for img in sorted(os.listdir(Config.LOCAL_STATIC_DIR)) if not img.startswith(".")
+    ]
     current_index = images.index(filename)
 
-    # Find the previous and next image filenames
+    # Determine previous and next images with wrapping
     prev_image = images[current_index - 1] if current_index > 0 else images[-1]
-    next_image = images[
-        (current_index + 1) % len(images)
-    ]  # Wrap around to the first image if at the last image
+    next_image = images[(current_index + 1) % len(images)]
 
-    # Extract the timestamp from the filename (assuming format YYYYMMDD_HHMMSS.jpg)
-    timestamp_str = filename.split(".")[0]  # Strip the .jpg
+    # Extract and format the timestamp from the filename (format: YYYYMMDD_HHMMSS.jpg)
+    timestamp_str = filename.split(".")[0]
     picture_datetime = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").strftime(
         "%B %d, %Y at %H:%M:%S"
     )
 
-    # Render the template with image and navigation
     return render_template(
         "slideshow.html",
-        image=f"{filename}",
+        image=filename,
         prev_image=prev_image,
         next_image=next_image,
         picture_datetime=picture_datetime,
     )
-
 
 @app.route("/remote_wakeup", methods=["GET", "POST"])
 @login_required
@@ -645,6 +661,48 @@ def delete_task(index):
     except Exception as e:
         flash(f'Error deleting job: {e}', 'danger')
     return redirect(url_for('cron_list'))
+
+
+
+## ESP32 control
+# Route to handle the "Stop Pump" button
+@app.route("/reset_esp", methods=["POST"])
+@login_required
+def reset_esp():
+    try:
+        publish_mqtt_message("reset", "ESP32 reset sent", "Failed to send reset")
+    except Exception as e:
+        flash(f"Failed to send reset Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    # Retrieve the latest sensor reading.
+    # Assumes get_last_reading() returns a dictionary with keys like 'timestamp', 'temp', 'hum', 'moisture', and 'temp_dht'
+    sensor_data = get_last_reading()
+    
+    # Get current light status (asynchronously)
+    light_status = asyncio.run(get_light_status(Config.WIZLIGHT_IP))
+    
+    # Fetch the latest watering log
+    conn = sqlite3.connect(Config.WATERING_DB_URI)
+    cursor = conn.cursor()
+    cursor.execute("SELECT timestamp, amount_ml FROM watering_log ORDER BY timestamp DESC LIMIT 1")
+    last_watering = cursor.fetchone()
+    conn.close()
+    
+    # Get smart plug status
+    smart_plug_status = mqtt_client.get_plug_status()
+    
+    return render_template('dashboard.html',
+                           sensor_data=sensor_data,
+                           light_status=light_status,
+                           last_watering=last_watering,
+                           smart_plug_status=smart_plug_status)
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
