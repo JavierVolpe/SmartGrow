@@ -1,102 +1,94 @@
-# Smart Grow House Control System
+# 🌱 SmartGrow – Automated IoT Grow System
 
-This is a smart system designed to monitor and control a grow house using IoT devices. The system integrates various sensors, an ESP32 microcontroller, and a Raspberry Pi, all controlled via a Flask-based web interface. The system is capable of collecting environmental data (temperature, humidity, soil moisture) and taking pictures of the grow house, while allowing users to control devices like fans and lights remotely.
+SmartGrow is a full-stack, IoT-powered grow monitoring and automation system built for indoor plant cultivation. It integrates hardware sensors (ESP32, Raspberry Pi), MQTT communication, a responsive web dashboard, and automation tools for fans, lights, watering, and environmental monitoring.
 
-## Components
+* * *
 
-- **ESP32**: Monitors environmental conditions (temperature, humidity, soil moisture) using sensors such as DS18B20, DHT22, and an analog soil moisture sensor.
-- **Raspberry Pi**: Handles the camera for daily picture taking, processes sensor data, and hosts the Flask web interface.
-- **MQTT Broker**: Facilitates communication between the ESP32 and Raspberry Pi to transmit sensor data and control messages.
-- **Flask Web Interface**: A web interface to view sensor data, control devices, and take pictures remotely.
+## 🚀 Features
 
-## Features
+### 📡 MQTT-Driven IoT System
 
-- **Environmental Monitoring**: Collects and visualizes temperature, humidity, and soil moisture data in real-time.
-- **Daily Photography**: The Raspberry Pi camera takes pictures of the grow house twice a day.
-- **Device Control**: Allows control of IoT devices like fans and lights via the web interface.
-- **Data Visualization**: Graphs show data trends for temperature, humidity, and soil moisture.
-- **User Authentication**: A secure login system for managing and controlling the grow house.
+-   Two ESP32 nodes (grow tent + drying area) with soil and air sensors.
+-   MQTT topics to send and receive commands and sensor data.
+-   OTA updates for ESP32 and MicroPython logic via HTTP.
 
-## Setup
+### 📈 Sensor Monitoring
 
-### Prerequisites
+-   Real-time and historical data:
+    -   Soil moisture
+    -   Soil temperature (DS18B20)
+    -   Ambient temperature & humidity (DHT22/DHT11)
+-   Responsive web dashboard and data visualizations.
 
-- Python 3.x
-- Flask
-- SQLite
-- Paho MQTT
-- Matplotlib
-- MicroPython on ESP32 
-- DS18B20, DHT22, and an analog soil moisture sensor.
-- 5V Pump
-- 
+### 💨 Environmental Controls
 
-### Installing Dependencies
+-   Fan control (top fan, bottom fan, dry fan) with speed adjustment.
+-   Water pump control.
+-   WiZ light control via Python script.
+-   Smart plug control via MQTT (Shelly Plug RPC).
+-   Scheduling for automatic toggles.
 
-1. Clone the repository:
+### 📷 Camera & Gallery
 
-    ```bash
-    git clone https://github.com/JavierVolpe/SmartGrow/SmartGrow.git
-    cd SmartGrow
-    ```
+-   Trigger remote camera to take snapshots twice daily.
+-   View gallery with pagination, date filtering, and fullscreen slideshow.
+-   Ideal for time-lapse growth tracking.
 
-2. Install required Python libraries:
+### 🔐 User Management
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+-   Flask-Login system with registration, login/logout.
+-   Secure storage via SQLite (hashed passwords).
 
-### ESP32 Setup
+### ⚙️ Automation & Cron
 
-1. Flash the ESP32 with the provided MicroPython script (located in `main.py`) to start reading sensor data and publishing it via MQTT.
-2. Connect your ESP32 to the same network as your Raspberry Pi.
+-   In-browser Crontab editor for scheduling tasks.
+-   Supports both standard and special cron jobs.
 
-### Raspberry Pi Setup
+### 📊 Dashboard
 
-1. Ensure your Raspberry Pi is connected to the same network as the ESP32 and the MQTT broker.
-2. Configure your MQTT broker settings in the `config.py` file.
-3. Run the Flask web app:
+-   Central view of all system states and latest sensor values.
+-   Last watering log, light/fan statuses, and plug state.
+* * *
 
-    ```bash
-    python app.py
-    ```
+## 🧰 Technologies Used
 
-4. Access the web interface by navigating to `http://<raspberry_pi_ip>:5000` in your browser.
+| Component | Stack |
+| --- | --- |
+| Frontend | HTML, Bootstrap 5, Jinja2 Templates |
+| Backend | Flask (Python), SQLite |
+| Hardware | ESP32, DHT22, DS18B20, Capacitive Soil Sensor |
+| Messaging Protocol | MQTT (paho-mqtt) |
+| Camera Control | Flask API for Raspberry Pi Camera |
+| OTA | MicroPython + urequests + MQTT |
 
-### Web Interface
+* * *
 
-- **Home Page**: Displays real-time data from the sensors (temperature, humidity, soil moisture) and the latest image from the camera.
-- **Temperature and Humidity**: View graphs of temperature, humidity, and soil moisture from the past 24 hours.
-- **Device Control**: Control the fan, lights, and smart plugs.
-- **Gallery**: View a collection of photos taken by the Raspberry Pi camera.
+## 🔌 MQTT Topics
 
-## Configuration
+| Node | Publish Topic | Subscribe Topic |
+| --- | --- | --- |
+| Grow Tent | `grow/data` | `grow/control` |
+| Dry Room | `dry/data` | `dry/control` |
+| Web App | Subscribes/publishes as needed across both |  |
 
-- **MQTT Configuration**: Set the MQTT server and topics in `config.py` under `Config` class.
-- **Camera Setup**: The camera is controlled using `rpicam-jpeg` (ensure it's installed and accessible from the Raspberry Pi).
-- **User Database**: The system uses SQLite to manage users. Add users via the Flask web interface.
+* * *
 
-## Usage
+## 📷 Example Workflow
 
-1. **Login**: Register a new user or login with existing credentials.
-2. **Control Devices**: Turn on/off the fan, lights, and control smart plugs.
-3. **Monitor Environment**: View real-time sensor data and check graphs for environmental trends.
-4. **Take Photos**: Trigger the Raspberry Pi to take a photo and view it instantly.
+1.  ESP32 reads soil and climate data every 30 minutes.
+2.  Sends readings via MQTT to a local broker.
+3.  Raspberry Pi logs data into SQLite and forwards to cloud broker.
+4.  Web app displays graphs and gallery.
+5.  Fans, pumps, and lights can be controlled from UI or via schedules.
+* * *
 
-## MQTT Topics
+## 🔐 Access Control
 
-- **Publishing Sensor Data**: `SmartGrow/growdata`
-- **Device Control**: `SmartGrow/growcontrol`
-- **Watering Event**: `SmartGrow/growwatering`
+-   Only authenticated users can control or view the system.
+-   Admin panel includes watering logs, cron job manager, and power actions (Wake-on-LAN / remote shutdown).
+* * *
 
-## Contributing
+## 👨‍💻 Author
 
-Feel free to fork this project and contribute to it by submitting issues or pull requests.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Note**: Remember to adjust all paths, IP addresses, and configurations to suit your environment before deploying.
+Javier Alejandro Volpe  | 
+🌍 Denmark | 🍃 IoT Enthusiast
