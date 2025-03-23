@@ -701,7 +701,44 @@ def dashboard():
                            last_watering=last_watering,
                            smart_plug_status=smart_plug_status)
 
+### EXTRA FAN: DRY HOUSE ###
+# Route to handle the "Start Dry Fan" button
+@app.route("/start_dry_fan", methods=["POST"])
+@login_required
+def start_dry_fan():
+    try:
+        publish_mqtt_message("fan_speed_60", "Dry Fan started successfully at 60%.", "Failed to start Dry Fan","dry/control")
+    except Exception as e:
+        flash(f"Failed to start Dry Fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
 
+# Route to handle the "Stop Dry Fan" button
+@app.route("/stop_dry_fan", methods=["POST"])
+@login_required
+def stop_dry_fan():
+    try:
+        publish_mqtt_message("stop_fan", "Dry Fan stopped successfully.", "Failed to stop Dry Fan","dry/control")
+    except Exception as e:
+        flash(f"Failed to stop Dry Fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+# Route to set the speed of the Dry Fan
+@app.route("/set_dry_fan_speed", methods=["POST"])
+@login_required
+def set_dry_fan_speed():
+    dry_fan_speed = request.form.get("dry_fan_speed")
+    try:
+        dry_fan_speed_int = int(dry_fan_speed)
+        if 0 <= dry_fan_speed_int <= 100:
+            message = f"fan_speed_{dry_fan_speed_int}"
+            publish_mqtt_message(message, f"Dry Fan speed set to {dry_fan_speed_int}%", "Failed to set Dry Fan speed","dry/control")
+        else:
+            flash("Invalid dry fan speed. Please enter a value between 0 and 100.", "danger")
+    except ValueError:
+        flash("Invalid dry fan speed. Please enter a numeric value.", "danger")
+    except Exception as e:
+        flash(f"Failed to set Dry Fan speed. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
 
 
 if __name__ == '__main__':

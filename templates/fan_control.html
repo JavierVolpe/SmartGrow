@@ -64,7 +64,42 @@
             </form>
         </div>
     </div>
+<!-- Dry Fan Control Section -->
+<div class="container-fluid">
+    <div class="row justify-content-center mt-4">
+        <div class="col-12 text-center">
+            <h2>Dry Fan</h2>
+        </div>
+    </div>
 
+    <!-- Buttons to Control Dry Fan -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            <form action="{{ url_for('start_dry_fan') }}" method="post">
+                <button type="submit" class="btn btn-success">Start Dry Fan</button>
+            </form>
+        </div>
+        <div class="col-auto">
+            <form action="{{ url_for('stop_dry_fan') }}" method="post">
+                <button type="submit" class="btn btn-danger">Stop Dry Fan</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dry Fan Speed Control Form -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            <form action="{{ url_for('set_dry_fan_speed') }}" method="post">
+                <div class="input-group">
+                    <input type="number" name="dry_fan_speed" min="0" max="100" class="form-control" placeholder="Dry Fan Speed (%)" required>
+                    <div class="input-group-append">
+                        <button type="submit" class="btn btn-primary">Set Dry Fan Speed</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
     <div class="container-fluid">
         <!-- Pump Control Heading -->
         <div class="row justify-content-center mt-4">
@@ -83,6 +118,21 @@
         <div class="col-auto">
             <form action="{{ url_for('stop_pump') }}" method="post">
                 <button type="submit" class="btn btn-danger">Stop Pump</button>
+            </form>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <!-- Reset Heading -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 text-center">
+                <h2>Reset ESP32 </h2>
+            </div>
+        </div>
+    <!-- Buttons to Reset ESP32 -->
+    <div class="row justify-content-center my-4">
+        <div class="col-auto">
+            <form action="{{ url_for('reset_esp') }}" method="post">
+                <button type="submit" class="btn btn-danger">Reset ESP32 </button>
             </form>
         </div>
     </div>
