@@ -34,5 +34,10 @@ app.logger.info('Application startup')
 # Import routes (make sure this import comes after initializing app and login_manager)
 from routes import *
 
+# from waitress import serve
+ 
+# if __name__ == "__main__":
+#     serve(app, host="0.0.0.0", port=5000, debug=True)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}WiZ Control{% endblock %}
+{% set active_menu = 'wiz_control' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-center">WiZ Light Control</h2>
+  
+  <div class="mb-3">
+    <label for="lampSelector" class="form-label">Select Lamp</label>
+    <select id="lampSelector" class="form-select">
+      {% for lamp, ip in wiz_lights.items() %}
+        <option value="{{ lamp }}">{{ lamp }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="brightnessRange" class="form-label">Brightness</label>
+    <input type="range" class="form-range" min="10" max="255" id="brightnessRange" value="255">
+  </div>
+
+  <div class="mb-3">
+    <label for="colorPicker" class="form-label">Color</label>
+    <input type="color" class="form-control form-control-color" id="colorPicker" value="#ffffff">
+  </div>
+
+  <button class="btn btn-primary me-2" onclick="sendLightUpdate()">Apply Changes</button>
+  <button class="btn btn-secondary me-2" onclick="turnOffLight()">Turn Off Light</button>
+</div>
+
+<script>
+// Convert hex color to RGB object
+function hexToRgb(hex) {
+    const bigint = parseInt(hex.replace("#", ""), 16);
+    return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255
+    };
+}
+
+// Convert RGB array to hex string
+function rgbToHex(rgb) {
+    let r = rgb[0].toString(16).padStart(2, '0');
+    let g = rgb[1].toString(16).padStart(2, '0');
+    let b = rgb[2].toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+}
+
+function sendLightUpdate() {
+    const lampName = document.getElementById("lampSelector").value;
+    const brightness = parseInt(document.getElementById("brightnessRange").value);
+    const colorHex = document.getElementById("colorPicker").value;
+    const { r, g, b } = hexToRgb(colorHex);
+
+    fetch("/api/set_light", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lamp_name: lampName, brightness, r, g, b })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            console.log("Light updated successfully!");
+        } else {
+            console.error("Error:", data.error);
+        }
+    });
+}
+
+function turnOffLight() {
+    const lampName = document.getElementById("lampSelector").value;
+    fetch("/api/turn_off_light", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lamp_name: lampName })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            console.log("Light turned off successfully!");
+        } else {
+            console.error("Error:", data.error);
+        }
+    });
+}
+
+function loadLightStatus() {
+    const lampName = document.getElementById("lampSelector").value;
+    fetch("/api/get_light_status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lamp_name: lampName })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            const status = data.data;
+            // Set brightness (if available; otherwise use default)
+            if (status.brightness) {
+                document.getElementById("brightnessRange").value = status.brightness;
+            }
+            // Set color picker if RGB is available
+            if (status.rgb) {
+                document.getElementById("colorPicker").value = rgbToHex(status.rgb);
+            }
+        } else {
+            console.error("Error loading status:", data.error);
+        }
+    });
+}
+
+// Load status on page load and when lamp selection changes
+document.getElementById("lampSelector").addEventListener("change", loadLightStatus);
+window.onload = loadLightStatus;
+</script>
+{% endblock %}

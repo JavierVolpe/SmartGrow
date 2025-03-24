@@ -26,16 +26,9 @@ from utils import (
     execute_command,
     remote_shutdown_func,
 )
-from turn_lights import control_wiz_light, get_light_status
+#from turn_lights import control_wiz_light, get_light_status
 from graph import graph_db_data, get_last_reading
 from smart_plug import mqtt_client
-
-
-
-
-
-
-
 
 
 
@@ -61,6 +54,7 @@ def index():
 
 
 @app.route("/register", methods=["GET", "POST"])
+@login_required
 def register():
     if request.method == "POST":
         username = request.form["username"]
@@ -139,22 +133,6 @@ def send_update():
         "Failed to send update request",
     )
 
-
-@app.route("/lights", methods=["GET", "POST"])
-@login_required
-def lights():
-    light_status = asyncio.run(get_light_status(Config.WIZLIGHT_IP))
-    if request.method == "POST":
-        light_status = request.form.get("lightStatus")
-        if light_status == "ON":
-            asyncio.run(control_wiz_light(Config.WIZLIGHT_IP, "ON"))
-        elif light_status == "OFF":
-            asyncio.run(control_wiz_light(Config.WIZLIGHT_IP, "OFF"))
-
-        else:
-            print(f"Invalid lightStatus: {light_status}")
-
-    return render_template("lights.html", light_status=light_status)
 
 
 @app.route("/take_photo", methods=["POST"])
@@ -739,6 +717,68 @@ def set_dry_fan_speed():
     except Exception as e:
         flash(f"Failed to set Dry Fan speed. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
+
+
+
+### NEW WIZ LIGHT CONTROL ###
+from flask import render_template, jsonify, request
+from flask_login import login_required
+from wiz_manager import update_light, turn_off_light, get_light_status, WIZ_LIGHTS
+
+@app.route("/wiz_control")
+@login_required
+def wiz_control():
+    # Pass the lamp names to the template so the user can choose
+    return render_template("wiz_control.html", wiz_lights=WIZ_LIGHTS, active_menu="wiz_control")
+
+@app.route("/api/set_light", methods=["POST"])
+@login_required
+def set_light():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    brightness = data.get("brightness")
+    r = data.get("r")
+    g = data.get("g")
+    b = data.get("b")
+    
+    try:
+        update_light(lamp_name, brightness, r, g, b)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/turn_off_light", methods=["POST"])
+@login_required
+def turn_off_light_api():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    
+    try:
+        turn_off_light(lamp_name)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get_light_status", methods=["POST"])
+@login_required
+def get_light_status_api():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    
+    try:
+        state = get_light_status(lamp_name)
+        # Convert state to a dict. This example assumes your state object has these attributes.
+        status = {
+            "power": state.power,         # e.g., True/False
+            "brightness": state.brightness,  # e.g., an int value (0-255)
+            "rgb": state.rgb              # e.g., a tuple like (r, g, b)
+        }
+        return jsonify({"status": "success", "data": status})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 
 if __name__ == '__main__':
