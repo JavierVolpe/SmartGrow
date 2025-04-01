@@ -16,7 +16,7 @@ class Config:
     MQTT_SUB_TOPIC = 'grow/data'
 
     # Device configurations
-    WIZLIGHT_BEDROOM = '192.168.100..102'
+    WIZLIGHT_BEDROOM = '192.168.100.102'
     WIZLIGHT_LIVINGROOM = '192.168.100.175'
     REMOTE_PC_IP = '192.168.100.3'
     REMOTE_PC_MAC = '24:4b:fd:b3:a8:f8'
