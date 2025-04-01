@@ -29,24 +29,41 @@ def is_valid_mac(mac):
     return True
 
 
+import subprocess
+
+# You might store these in your Config, environment variables, or 
+# a secure secret manager rather than hardcoding them.
+
+
 def remote_shutdown_func(ip_address):
+    """
+    Shuts down a Windows PC remotely using Samba's 'net rpc shutdown' command.
+    Prerequisites:
+      - Target PC must allow Remote Shutdown.
+      - Correct Windows Firewall rules open.
+      - Samba client installed on the local machine (e.g. 'samba-common-bin').
+      - Valid Windows user credentials with shutdown privileges.
+    """
+    cmd = [
+        "net",
+        "rpc",
+        "shutdown",
+        "-I", ip_address,
+        "-U", f"{Config.WINDOWS_USER}%{Config.WINDOWS_PASS}",
+        "-f"             # Force all running apps to close
+        # You can also add "-t", "60" to set a 60-second delay if desired
+    ]
     try:
-        # Attempt SSH connection with a timeout of 10 seconds
-        ssh_command = ["ssh", "-o", "ConnectTimeout=10", f"{Config.REMOTE_PC_USER}@{ip_address}", "shutdown", "/s", "/t", "60"]
-        subprocess.run(ssh_command, check=True)
+        subprocess.run(cmd, check=True)
+        print(f"Shutdown command sent successfully to {ip_address}")
         return True
     except subprocess.CalledProcessError as e:
-        # Handle SSH command execution errors
-        print(f"Error occurred: {e}")
-        return False
-    except socket.timeout:
-        # Handle timeout (host didn't respond)
-        print("Connection timed out. Host didn't respond.")
+        print(f"Failed to shut down {ip_address}. Error: {e}")
         return False
     except Exception as ex:
-        # Handle other exceptions (e.g., connection refused)
-        print(f"An error occurred: {ex}")
+        print(f"An error occurred attempting to shut down {ip_address}: {ex}")
         return False
+
 
 
 def execute_command(command):
