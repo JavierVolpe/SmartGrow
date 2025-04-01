@@ -1,192 +1,166 @@
-SmartGrow -- Automated IoT Grow System
+🌱 SmartGrow -- Automated IoT Grow System
 =====================================
 
 SmartGrow is an IoT-powered, full-stack system for monitoring and automating indoor plant cultivation. The system integrates sensors, MQTT communication, and a web dashboard, allowing users to monitor environmental conditions and control various devices like fans, pumps, and lights.
 
 * * * * *
 
-?? Features
+🚀 Features
 -----------
 
-### ?? MQTT-Driven IoT System
+### 📡 **MQTT-Powered IoT Nodes**
 
--   Two ESP32 nodes (grow tent and drying area) with soil and air sensors.
+-   🌿 **Grow Tent and Drying Room Nodes:** ESP32-based with integrated soil and air sensors.
 
--   MQTT topics for sending and receiving sensor data and commands.
+-   🔄 **MQTT Communication:** Real-time data and command exchange.
 
--   OTA updates for ESP32 and MicroPython logic via HTTP.
+-   🌐 **OTA Updates:** Update ESP32 nodes remotely via HTTP.
 
-### ?? Sensor Monitoring
+### 📈 **Real-Time Sensor Monitoring**
 
--   Real-time and historical data for:
+-   💧 **Soil Moisture**
 
-    -   Soil moisture
+-   🌡️ **Soil Temperature (DS18B20)**
 
-    -   Soil temperature (DS18B20)
+-   🌤️ **Ambient Temperature & Humidity (DHT22/DHT11)**
 
-    -   Ambient temperature and humidity (DHT22/DHT11)
+-   📊 Responsive dashboard visualizations
 
--   Visualizations through a responsive web dashboard.
+### 💨 **Comprehensive Environmental Controls**
 
-### ?? Environmental Controls
+-   🌬️ **Fan Control:** Adjustable speed and automation for top, bottom, and drying fans.
 
--   Fan control (top fan, bottom fan, dry fan) with speed adjustment.
+-   🚰 **Water Pump Management**
 
--   Water pump control.
+-   💡 **WiZ Smart Lights Integration**
 
--   WiZ light control via Python script.
+-   🔌 **Smart Plug Management via MQTT (Shelly Plug RPC)**
 
--   Smart plug control via MQTT (Shelly Plug RPC).
+-   📅 **Automated Scheduling**
 
--   Scheduling for automatic toggles.
+### 📷 **Camera & Interactive Gallery**
 
-### ?? Camera & Gallery
+-   📸 **Twice Daily Snapshots:** Perfect for growth tracking.
 
--   Remote camera triggers for snapshots twice a day.
+-   🖼️ **Gallery View:** Pagination, filtering by date, and slideshow mode.
 
--   View and filter images in the gallery with pagination and slideshow functionality.
+### 🔐 **Robust User Management**
 
--   Ideal for time-lapse plant growth tracking.
+-   👤 Secure user login system with Flask-Login.
 
-### ?? User Management
+-   🗄️ Passwords securely hashed and stored using SQLite.
 
--   Secure login system via Flask-Login with SQLite-backed user data.
+### ⚙️ **Advanced Automation & Cron Management**
 
--   Passwords are hashed for security.
+-   🕒 **Web-based Cron Editor:** Easily schedule tasks.
 
-### ?? Automation & Cron
+-   ✨ Supports special cron jobs (e.g., `@reboot`).
 
--   In-browser Crontab editor for scheduling tasks.
+### 📊 **Centralized Dashboard**
 
--   Support for both standard cron jobs and special jobs (e.g., `@reboot`).
+-   📍 Quick view of current system status.
 
-### ?? Dashboard
-
--   A central view displaying system states and sensor data.
-
--   Watering logs, fan/pump statuses, and plug states are visible in real time.
+-   🌱 Recent watering logs, sensor values, fan, pump, and plug statuses.
 
 * * * * *
 
-?? Technologies Used
+🧰 Tech Stack
+-------------
+
+| Component | Technologies |
+| 🎨 **Frontend** | HTML, Bootstrap 5, Jinja2 |
+| ⚙️ **Backend** | Python Flask, SQLite |
+| 🛠️ **Hardware** | ESP32, DHT22, DS18B20, Capacitive Soil Sensor |
+| 📡 **Messaging** | MQTT (paho-mqtt) |
+| 📷 **Camera Control** | Flask API, Raspberry Pi Camera |
+| 🔄 **OTA** | MicroPython, MQTT, urequests |
+
+* * * * *
+
+🔌 MQTT Communication
+---------------------
+
+| Node | Publish Topic | Subscribe Topic |
+| 🌿 Grow | `grow/data` | `grow/control` |
+| 🍃 Dry | `dry/data` | `dry/control` |
+
+* * * * *
+
+🗺️ Workflow Example
 --------------------
 
-| **Component** | **Stack** |
-| --- | --- |
-| **Frontend** | HTML, Bootstrap 5, Jinja2 Templates |
-| **Backend** | Flask (Python), SQLite |
-| **Hardware** | ESP32, DHT22, DS18B20, Capacitive Soil Sensor |
-| **Messaging Protocol** | MQTT (paho-mqtt) |
-| **Camera Control** | Flask API for Raspberry Pi Camera |
-| **OTA** | MicroPython + urequests + MQTT |
+1.  🌡️ **ESP32** collects sensor data every 30 minutes.
+
+2.  🔄 Sends data via **MQTT** to the local broker.
+
+3.  💻 **Raspberry Pi** logs and forwards data to cloud.
+
+4.  📈 Web app visualizes data and manages automation.
 
 * * * * *
 
-?? MQTT Topics
---------------
+🔒 Secure Access
+----------------
 
-| **Node** | **Publish Topic** | **Subscribe Topic** |
-| --- | --- | --- |
-| Grow Tent | `grow/data` | `grow/control` |
-| Dry Room | `dry/data` | `dry/control` |
-| Web App | Publishes/subscribes as needed across both |  |
+-   ✅ Authenticated-only access to controls and data.
+
+-   🔑 Admin panel with comprehensive management tools (watering logs, cron jobs, power actions).
 
 * * * * *
 
-?? Example Workflow
--------------------
+📂 Installation Guide
+---------------------
 
-1.  **ESP32** reads sensor data every 30 minutes and sends it via MQTT to the local broker.
+### 🛠️ **Prerequisites**
 
-2.  **Raspberry Pi** logs the data into an SQLite database and forwards it to the cloud broker.
+-   Python 3.7+
 
-3.  **Web App** displays data visualizations and the image gallery.
+-   Flask
 
-4.  **Control** fans, pumps, and lights via the web interface or set schedules for automation.
+-   SQLite
+
+-   paho-mqtt
+
+-   MicroPython (for ESP32)
+
+### 📥 **Setup Instructions**
+
+```
+git clone https://github.com/JavierVolpe/SmartGrow.git
+cd SmartGrow
+pip install -r requirements.txt
+python app.py
+```
+
+**ESP32 Flashing:**
+
+-   Refer to the provided firmware instructions within the repository.
 
 * * * * *
 
-?? Access Control
+⚙️ Customizations
 -----------------
 
--   Only authenticated users can access system controls and view the data.
+-   🕒 **Cron Jobs:** Schedule recurring tasks easily through the web-based cron editor.
 
--   The admin panel includes:
+-   ⚖️ **Sensor Calibration:** Modify soil moisture thresholds to suit your environment.
 
-    -   Watering logs
-
-    -   Cron job management
-
-    -   Power actions like Wake-on-LAN and remote shutdown.
+-   🌐 **OTA Updates:** Configure OTA firmware URLs in `config.py`.
 
 * * * * *
 
-?? Installation
----------------
+🤝 Contributing & Feedback
+--------------------------
 
-### Prerequisites
+-   🐞 Report issues and suggest features by creating issues.
 
--   **Python** 3.7+
-
--   **Flask**
-
--   **SQLite**
-
--   **paho-mqtt**
-
--   **MicroPython** (for ESP32)
-
-### Steps to Run
-
-1.  **Clone the repository:**
-
-    bash
-
-    Copy
-
-    `git clone https://github.com/JavierVolpe/SmartGrow.git
-    cd smartgrow`
-
-2.  **Install dependencies:**
-
-    bash
-
-    Copy
-
-    `pip install -r requirements.txt`
-
-3.  **Run the Flask app:**
-
-    bash
-
-    Copy
-
-    `python app.py`
-
-4.  **Flash the ESP32:** Follow the instructions in the repository's `README` to flash the ESP32 with the required MicroPython firmware and the correct code.
+-   💡 Submit enhancements via pull requests.
 
 * * * * *
 
-??? Customization
------------------
-
-### Cron Jobs
-
--   Use the built-in **cron editor** to schedule regular tasks like data syncing or device control.
-
-### Sensor Calibration
-
--   Adjust the soil moisture sensor thresholds (`DRY_SOIL`, `WET_SOIL`) and other sensor parameters to fit your environment.
-
-### OTA Updates
-
--   The ESP32 can perform OTA updates via HTTP to update the firmware remotely. Customize the OTA URL in `config.py`.
-
-
-????? Author
+👨‍💻 Author
 ------------
 
-**Javier Alejandro Volpe**\
-?? Denmark | ?? IoT Enthusiast
+**Javier Alejandro Volpe**
 
-* * * * *
+🌍 Denmark | 🍃 IoT Enthusiast
