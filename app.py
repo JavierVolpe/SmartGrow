@@ -4,10 +4,10 @@ import secrets
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-
+from config import Config
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder=Config.LOCAL_STATIC_DIR, static_url_path='/static')
 #app.secret_key = secrets.token_hex(16)  # Or use your existing secret key
 app.secret_key = "AAAAAAAAAAAAAAAA"
 
@@ -33,11 +33,6 @@ app.logger.info('Application startup')
 
 # Import routes (make sure this import comes after initializing app and login_manager)
 from routes import *
-
-# from waitress import serve
- 
-# if __name__ == "__main__":
-#     serve(app, host="0.0.0.0", port=5000, debug=True)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

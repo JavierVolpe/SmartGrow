@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Path to your virtual environment
-VENV_PATH="/home/javier/SmartHome/venv/bin/activate"
+VENV_PATH="/home/debian/SmartHome/venv/bin/activate"
 
 # Path to your Python script
-SCRIPT_PATH="/home/javier/SmartHome/mqtt_plug_control.py"
+SCRIPT_PATH="/home/debian/SmartHome/device_control.py"
 
 # Activate the virtual environment
 source "$VENV_PATH"

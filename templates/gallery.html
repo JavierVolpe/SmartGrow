@@ -6,7 +6,7 @@
 <div class="container text-center my-5">
     <div class="row">
         {% for image in images %}
-        <div class="col-md-4 col-sm-6 mb-4"> <!-- Adjusted column size for larger images -->
+        <div class="col-md-4 col-sm-6 mb-4"> 
             <a href="/slideshow/{{ image }}">
                 <img class="img-thumbnail" src="{{ url_for('static', filename=image) }}" alt="Gallery Image">
             </a>

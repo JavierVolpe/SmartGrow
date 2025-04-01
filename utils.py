@@ -1,14 +1,15 @@
 from flask import flash, redirect, url_for
 import paho.mqtt.client as mqtt
 import subprocess
-from smart_home import is_valid_mac, is_valid_ip, execute_command, remote_shutdown_func
+from device_control import is_valid_mac, is_valid_ip, execute_command, remote_shutdown_func
 from config import Config
 
-def publish_mqtt_message(message, success_msg, error_msg):
+
+def publish_mqtt_message(message, success_msg, error_msg, topic=Config.MQTT_PUB_TOPIC):
     try:
         mqtt_client = mqtt.Client()
         mqtt_client.connect(Config.MQTT_BROKER_IP, Config.MQTT_BROKER_PORT, 60)
-        mqtt_client.publish(Config.MQTT_PUB_TOPIC, message)
+        mqtt_client.publish(topic, message)
         mqtt_client.disconnect()
         flash(success_msg, "success")
     except Exception as e:

@@ -1,52 +1,47 @@
 # Standard library imports
+import asyncio
 import os
 import sqlite3
-import asyncio
 from datetime import datetime
-import requests
+
 # Third-party imports
-from flask import render_template, request, redirect, url_for, flash, session
-from flask_login import (
-    login_user,
-    logout_user,
-    login_required,
-    current_user,
-)
-from werkzeug.security import generate_password_hash, check_password_hash
-import paho.mqtt.client as mqtt
+import requests
+from flask import (render_template, request, redirect, url_for, flash, session, jsonify)
+from flask_login import current_user, login_required, login_user, logout_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # Local application imports
 from app import app, login_manager
-from models import User, load_user, create_watering_table
 from config import Config
-from utils import (
-    publish_mqtt_message,
-    is_valid_mac,
-    is_valid_ip,
-    execute_command,
-    remote_shutdown_func,
-)
-#from turn_lights import control_wiz_light, get_light_status
 from graph import graph_db_data, get_last_reading
-from smart_plug import mqtt_client
+from models import User, load_user, create_watering_table
+from device_control import (
+    mqtt_client,             # The global ShellyPlugMQTTClient instance
+    is_valid_ip,
+    is_valid_mac,
+    remote_shutdown_func,
+    execute_command,
+    get_light_status, 
+    set_light_state, 
+    turn_off_light,
+    get_light_status_sync, 
+    set_light_state_sync, 
+    turn_off_light_sync
+)
 
 
+from utils import execute_command, is_valid_ip, is_valid_mac, publish_mqtt_message, remote_shutdown_func
+from cron_manager import CronManager
+from wiz_manager import update_light, turn_off_light, get_light_status, WIZ_LIGHTS
 
-# Load user from database
-@login_manager.user_loader
-def load_user(user_id):
-    try:
-        conn = sqlite3.connect(Config.USERS_DB_URI)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        conn.close()
-    except Exception as e:
-        print(f"Error loading user: {e}")
+# Set up the user loader from models (avoid redefinition)
+login_manager.user_loader(load_user)
 
-    if user:
-        return User(id=user[0], username=user[1], password=user[2])
-    return None
+cm = CronManager()
+
+# --------------------------------------------------
+# Main Site Routes
+# --------------------------------------------------
 
 @app.route("/")
 def index():
@@ -54,7 +49,7 @@ def index():
 
 
 @app.route("/register", methods=["GET", "POST"])
-@login_required
+@login_required # Ensure only logged-in users can register
 def register():
     if request.method == "POST":
         username = request.form["username"]
@@ -64,10 +59,7 @@ def register():
         # Save user to the database
         conn = sqlite3.connect(Config.USERS_DB_URI)
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, hashed_password),
-        )
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
         conn.commit()
         conn.close()
         flash("Registration successful. You can now log in.", "success")
@@ -109,12 +101,14 @@ def logout():
     return redirect(url_for("login"))
 
 
+# --------------------------------------------------
+# Temperature, Photo, and Gallery Routes
+# --------------------------------------------------
 
 @app.route("/temperature")
 @login_required
 def temperature():
     last_reading = get_last_reading()
-
     return render_template(
         "temperature.html",
         data_img=graph_db_data("temp"),
@@ -124,8 +118,8 @@ def temperature():
         last_reading=last_reading
     )
 
-
 @app.route("/send_update", methods=["POST"])
+@login_required
 def send_update():
     return publish_mqtt_message(
         "send_update",
@@ -133,13 +127,11 @@ def send_update():
         "Failed to send update request",
     )
 
-
-
 @app.route("/take_photo", methods=["POST"])
 @login_required
 def take_photo():
     try:
-        # 1. Trigger the Raspberry Pi to capture a photo
+        # Trigger photo capture on Raspberry Pi
         response = requests.post(Config.PI_CAPTURE_URL)
         response.raise_for_status()
         data = response.json()
@@ -148,17 +140,16 @@ def take_photo():
             flash("No photo filename returned by the camera API.")
             return redirect(url_for("photo"))
         
-        # 2. Download the captured photo from the Raspberry Pi's static endpoint
+        # Download the photo from Pi's static endpoint
         photo_url = f"{Config.PI_STATIC_URL}/{photo_filename}"
         r = requests.get(photo_url)
         r.raise_for_status()
 
-        # 3. Save the photo locally on the Linux VM so that gallery and slideshow work
+        # Save the photo locally for gallery/slideshow
         local_photo_path = os.path.join(Config.LOCAL_STATIC_DIR, photo_filename)
         with open(local_photo_path, "wb") as f:
             f.write(r.content)
         
-        # 4. Redirect to the show_photo route with the new filename
         return redirect(url_for("show_photo", photo_filename=photo_filename))
     except requests.RequestException as e:
         flash(f"Error capturing photo: {e}")
@@ -168,10 +159,8 @@ def take_photo():
 @app.route("/show_photo")
 @login_required
 def show_photo():
-    # Get the filename from query parameters
     photo_filename = request.args.get("photo_filename")
-    # Build the URL to the static file on the Linux VM
-    photo_url = url_for("static", filename=f"{photo_filename}")
+    photo_url = url_for("static", filename=photo_filename)
     return render_template("show_photo.html", photo_url=photo_url)
 
 
@@ -181,19 +170,14 @@ def photo():
     return render_template("photo.html")
 
 
-
 @app.route("/gallery", defaults={"page": 1}, methods=["GET", "POST"])
 @app.route("/gallery/page/<int:page>", methods=["GET", "POST"])
 @login_required
 def gallery(page):
-    # List images from the local static directory
-    images = sorted(
-        [img for img in os.listdir(Config.LOCAL_STATIC_DIR) if not img.startswith(".")],
-        reverse=True
-    )
+    images = sorted([img for img in os.listdir(Config.LOCAL_STATIC_DIR) if not img.startswith(".")], reverse=True)
     filtered_images = images
 
-    # Optionally filter images by date using the filename (YYYYMMDD)
+    # Optional date filtering by filename (YYYYMMDD)
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     if start_date and end_date:
@@ -204,7 +188,6 @@ def gallery(page):
     start_index = (page - 1) * images_per_page
     end_index = start_index + images_per_page
     paginated_images = filtered_images[start_index:end_index]
-
     has_prev = page > 1
     has_next = end_index < total_images
 
@@ -216,25 +199,16 @@ def gallery(page):
         has_next=has_next,
     )
 
+
 @app.route("/slideshow/<filename>")
 @login_required
 def slideshow(filename):
-    # Get the list of images from the local static folder
-    images = [
-        img for img in sorted(os.listdir(Config.LOCAL_STATIC_DIR)) if not img.startswith(".")
-    ]
+    images = [img for img in sorted(os.listdir(Config.LOCAL_STATIC_DIR)) if not img.startswith(".")]
     current_index = images.index(filename)
-
-    # Determine previous and next images with wrapping
     prev_image = images[current_index - 1] if current_index > 0 else images[-1]
     next_image = images[(current_index + 1) % len(images)]
-
-    # Extract and format the timestamp from the filename (format: YYYYMMDD_HHMMSS.jpg)
     timestamp_str = filename.split(".")[0]
-    picture_datetime = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").strftime(
-        "%B %d, %Y at %H:%M:%S"
-    )
-
+    picture_datetime = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").strftime("%B %d, %Y at %H:%M:%S")
     return render_template(
         "slideshow.html",
         image=filename,
@@ -243,65 +217,48 @@ def slideshow(filename):
         picture_datetime=picture_datetime,
     )
 
+
+# --------------------------------------------------
+# Remote Control and Watering Routes
+# --------------------------------------------------
+
 @app.route("/remote_wakeup", methods=["GET", "POST"])
 @login_required
 def wol():
     if request.method == "POST":
         mac_address = request.form.get("macAddress")
-        if is_valid_mac(mac_address):
-            result = execute_command(f"sudo etherwake -i wlan0 {mac_address}")
-        else:
-            result = "Error: Invalid MAC address"
-    else:  # TODO: Check why is it jumping to this else
-        result = None
-        if is_valid_mac(Config.REMOTE_PC_MAC):
-            result = execute_command(f"sudo etherwake -i wlan0 {Config.REMOTE_PC_MAC}")
-        else:
-            result = "Error: Invalid MAC address"
-    return render_template(
-        "remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC
-    )
+        result = execute_command(f"sudo etherwake -i wlan0 {mac_address}") if is_valid_mac(mac_address) else "Error: Invalid MAC address"
+    else:
+        result = execute_command(f"sudo etherwake -i wlan0 {Config.REMOTE_PC_MAC}") if is_valid_mac(Config.REMOTE_PC_MAC) else "Error: Invalid MAC address"
+    return render_template("remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC)
 
 
 @app.route("/remote_shutdown", methods=["GET", "POST"])
 @login_required
 def remote_shutdown():
-
     if request.method == "POST":
         ip_address = request.form.get("ipAddress")
         if is_valid_ip(ip_address):
-            if remote_shutdown_func(ip_address):
-                result = f"Result: Remote shutdown command sent to {ip_address}"
-            else:
-                result = f"Error: Remote shutdown command failed for {ip_address}"
+            result = f"Result: Remote shutdown command sent to {ip_address}" if remote_shutdown_func(ip_address) else f"Error: Remote shutdown command failed for {ip_address}"
         else:
             result = "Error: Invalid IP address"
     else:
-        ...
         result = ""
-    return render_template(
-        "remote_power.html",
-        remote_pc_ip=Config.REMOTE_PC_IP,
-        remote_pc_mac=Config.REMOTE_PC_MAC,
-        result=result,
-    )
+    return render_template("remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC, result=result)
 
 
 @app.route("/remote_power")
 @login_required
 def remote_power():
-    return render_template(
-        "remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC
-    )
+    return render_template("remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC)
 
-# Route to handle displaying and recording watering
+
 @app.route("/watering", methods=["GET", "POST"])
 @login_required
 def watering():
     create_watering_table()  # Ensure the table exists
-
     if request.method == "POST":
-        amount_ml = request.form.get("amount_ml") or None
+        amount_ml = request.form.get("amount_ml")
         if amount_ml:
             amount_ml = int(amount_ml)
             if amount_ml < 0:
@@ -309,66 +266,48 @@ def watering():
                 return redirect(url_for("watering"))
         else:
             amount_ml = None
-
         try:
-            # Connect to the database
             conn = sqlite3.connect(Config.WATERING_DB_URI)
             cursor = conn.cursor()
-
             time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # Insert the new watering record
-            cursor.execute(
-                "INSERT INTO watering_log (timestamp, amount_ml) VALUES (?, ?)",
-                (time_now, amount_ml),
-            )
+            cursor.execute("INSERT INTO watering_log (timestamp, amount_ml) VALUES (?, ?)", (time_now, amount_ml))
             conn.commit()
             conn.close()
-            
-            # Flash a success message
             flash("Watering record added successfully.", "success")
         except Exception as e:
-            print(f"Error: {e}")
             flash(f"Error adding watering record. Please try again. (Error {e})", "danger")
-
         return redirect(url_for("watering"))
 
-    # Fetch watering logs
     conn = sqlite3.connect(Config.WATERING_DB_URI)
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT timestamp, amount_ml, id FROM watering_log ORDER BY timestamp DESC"
-    )
+    cursor.execute("SELECT timestamp, amount_ml, id FROM watering_log ORDER BY timestamp DESC")
     logs = cursor.fetchall()
     conn.close()
-
     return render_template("watering.html", logs=logs)
 
 
 @app.route("/delete_watering/<int:log_id>", methods=["POST"])
 @login_required
 def delete_watering(log_id):
-    # Connect to the database
     conn = sqlite3.connect(Config.WATERING_DB_URI)
     cursor = conn.cursor()
-
-    # Delete the record with the given id
     cursor.execute("DELETE FROM watering_log WHERE id = ?", (log_id,))
     conn.commit()
     conn.close()
-
-    # Flash a success message
     flash("Watering record deleted successfully.", "success")
-
     return redirect(url_for("watering"))
 
 
-# New route for fan control
+# --------------------------------------------------
+# Fan, Pump, and Smart Plug Control Routes
+# --------------------------------------------------
+
 @app.route("/fan_control", methods=["GET", "POST"])
 @login_required
 def fan_control():
     return render_template("fan_control.html")
 
-# Route to handle the "Start Fan" button
+
 @app.route("/start_fan", methods=["POST"])
 @login_required
 def start_fan():
@@ -378,7 +317,7 @@ def start_fan():
         flash(f"Failed to start fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
-# Route to handle the "Stop Fan" button
+
 @app.route("/stop_fan", methods=["POST"])
 @login_required
 def stop_fan():
@@ -388,7 +327,7 @@ def stop_fan():
         flash(f"Failed to stop fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
-# Route to handle the "Start Fan" button
+
 @app.route("/start_bottom_fan", methods=["POST"])
 @login_required
 def start_bottom_fan():
@@ -398,7 +337,7 @@ def start_bottom_fan():
         flash(f"Failed to start fan. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
-# Route to handle the "Stop Fan" button
+
 @app.route("/stop_bottom_fan", methods=["POST"])
 @login_required
 def stop_bottom_fan():
@@ -409,7 +348,6 @@ def stop_bottom_fan():
     return redirect(url_for("fan_control"))
 
 
-# Route to handle the "Start Pump" button
 @app.route("/start_pump", methods=["POST"])
 @login_required
 def start_pump():
@@ -419,7 +357,7 @@ def start_pump():
         flash(f"Failed to start Pump. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
-# Route to handle the "Stop Pump" button
+
 @app.route("/stop_pump", methods=["POST"])
 @login_required
 def stop_pump():
@@ -429,17 +367,15 @@ def stop_pump():
         flash(f"Failed to stop Pump. Error: {e}", "danger")
     return redirect(url_for("fan_control"))
 
-# Route to handle the "Set Fan Speed" form submission
+
 @app.route("/set_fan_speed", methods=["POST"])
 @login_required
 def set_fan_speed():
     fan_speed = request.form.get("fan_speed")
     try:
-        # Validate that fan_speed is an integer between 0 and 100
         fan_speed_int = int(fan_speed)
         if 0 <= fan_speed_int <= 100:
             message = f"fan_speed_{fan_speed_int}"
-            # Publish the MQTT message
             publish_mqtt_message(message, f"Fan speed set to {fan_speed_int}%", "Failed to set fan speed")
         else:
             flash("Invalid fan speed. Please enter a value between 0 and 100.", "danger")
@@ -450,8 +386,6 @@ def set_fan_speed():
     return redirect(url_for("fan_control"))
 
 
-
-# Route to handle Smart Plug Control Display
 @app.route("/smart_plug", methods=["GET", "POST"])
 @login_required
 def smart_plug():
@@ -473,44 +407,176 @@ def smart_plug():
             flash("Invalid action.", "danger")
         return redirect(url_for("smart_plug"))
     else:
-        # Get the plug status
         status = mqtt_client.get_plug_status()
-        # Get the next scheduled status change
         schedule_info = mqtt_client.get_next_status_change()
         return render_template("smart_plug.html", status=status, schedule_info=schedule_info)
-    
+
+
+@app.route("/reset_esp", methods=["POST"])
+@login_required
+def reset_esp():
+    try:
+        publish_mqtt_message("reset", "ESP32 reset sent", "Failed to send reset")
+    except Exception as e:
+        flash(f"Failed to send reset Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+
+# --------------------------------------------------
+# Calculator and Dashboard Routes
+# --------------------------------------------------
 
 @app.route('/calculate', methods=['GET', 'POST'])
 def calculate():
-    # On GET: use today's date by default and perform the calculation immediately.
-    # On POST: use the user-provided date.
     date_input = request.form.get('start_date', Config.PLANTATION_DATE)
-
     try:
         start_date = datetime.strptime(date_input, '%Y-%m-%d')
         today = datetime.today()
         delta = today - start_date
-        total_days = delta.days
-        weeks = total_days // 7
-        days = total_days % 7
-
         result = {
-            'weeks': weeks,
-            'days': days,
-            'total_days': total_days,
+            'weeks': delta.days // 7,
+            'days': delta.days % 7,
+            'total_days': delta.days,
             'start_date': start_date.strftime('%Y-%m-%d'),
             'today': today.strftime('%Y-%m-%d')
         }
     except ValueError:
         result = {'error': 'Invalid date format. Please use YYYY-MM-DD.'}
-        
     return render_template('calculate.html', result=result, date_input=date_input)
 
-## Test area
-from cron_manager import CronManager
 
-# Initialize the CronManager
-cm = CronManager()
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    sensor_data = get_last_reading()
+    # Using asyncio to get light status from wiz_manager
+    light_status = asyncio.run(get_light_status(Config.WIZLIGHT_IP))
+    conn = sqlite3.connect(Config.WATERING_DB_URI)
+    cursor = conn.cursor()
+    cursor.execute("SELECT timestamp, amount_ml FROM watering_log ORDER BY timestamp DESC LIMIT 1")
+    last_watering = cursor.fetchone()
+    conn.close()
+    smart_plug_status = mqtt_client.get_plug_status()
+    return render_template('dashboard.html',
+                           sensor_data=sensor_data,
+                           light_status=light_status,
+                           last_watering=last_watering,
+                           smart_plug_status=smart_plug_status)
+
+
+# --------------------------------------------------
+# Extra Fan Control (Dry House)
+# --------------------------------------------------
+
+@app.route("/start_dry_fan", methods=["POST"])
+@login_required
+def start_dry_fan():
+    try:
+        publish_mqtt_message("fan_speed_60", "Dry Fan started successfully at 60%.", "Failed to start Dry Fan", "dry/control")
+    except Exception as e:
+        flash(f"Failed to start Dry Fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+
+@app.route("/stop_dry_fan", methods=["POST"])
+@login_required
+def stop_dry_fan():
+    try:
+        publish_mqtt_message("stop_fan", "Dry Fan stopped successfully.", "Failed to stop Dry Fan", "dry/control")
+    except Exception as e:
+        flash(f"Failed to stop Dry Fan. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+
+@app.route("/set_dry_fan_speed", methods=["POST"])
+@login_required
+def set_dry_fan_speed():
+    dry_fan_speed = request.form.get("dry_fan_speed")
+    try:
+        dry_fan_speed_int = int(dry_fan_speed)
+        if 0 <= dry_fan_speed_int <= 100:
+            message = f"fan_speed_{dry_fan_speed_int}"
+            publish_mqtt_message(message, f"Dry Fan speed set to {dry_fan_speed_int}%", "Failed to set Dry Fan speed", "dry/control")
+        else:
+            flash("Invalid dry fan speed. Please enter a value between 0 and 100.", "danger")
+    except ValueError:
+        flash("Invalid dry fan speed. Please enter a numeric value.", "danger")
+    except Exception as e:
+        flash(f"Failed to set Dry Fan speed. Error: {e}", "danger")
+    return redirect(url_for("fan_control"))
+
+
+# --------------------------------------------------
+# WiZ Light Control Routes (API)
+# --------------------------------------------------
+
+@app.route("/wiz_control")
+@login_required
+def wiz_control():
+    return render_template("wiz_control.html", wiz_lights=WIZ_LIGHTS, active_menu="wiz_control")
+
+# Route to set light state (brightness and color)
+@app.route("/api/set_light", methods=["POST"])
+@login_required
+def set_light_api():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    ip_address = WIZ_LIGHTS.get(lamp_name)
+    brightness = data.get("brightness", 255)
+    r = data.get("r", 255)
+    g = data.get("g", 255)
+    b = data.get("b", 255)
+
+    try:
+        result = set_light_state_sync(ip_address, brightness, r, g, b)
+        if result:
+            return jsonify({"status": "success"})
+        return jsonify({"error": "Failed to set light state"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+# Route to turn off light
+@app.route("/api/turn_off_light", methods=["POST"])
+@login_required
+def turn_off_light_api():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    ip_address = WIZ_LIGHTS.get(lamp_name)
+
+    try:
+        result = turn_off_light_sync(ip_address)
+        if result:
+            return jsonify({"status": "success"})
+        return jsonify({"error": "Failed to turn off light"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.route("/api/get_light_status", methods=["POST"])
+@login_required
+def get_light_status_api():
+    data = request.get_json()
+    lamp_name = data.get("lamp_name")
+    ip_address = WIZ_LIGHTS.get(lamp_name)
+
+    try:
+        status = asyncio.run(get_light_status(ip_address))
+        if "error" in status:
+            return jsonify({"error": status["error"]}), 500
+        return jsonify({"status": "success", "data": status})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+# --------------------------------------------------
+# Cron List
+# --------------------------------------------------
 
 @app.route('/cron_list')
 @login_required
@@ -522,6 +588,7 @@ def cron_list():
     """
     jobs = cm.get_jobs()
     return render_template('cron_list.html', cron_jobs=jobs, active_menu='cron')
+
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -639,147 +706,6 @@ def delete_task(index):
     except Exception as e:
         flash(f'Error deleting job: {e}', 'danger')
     return redirect(url_for('cron_list'))
-
-
-
-## ESP32 control
-# Route to handle the "Stop Pump" button
-@app.route("/reset_esp", methods=["POST"])
-@login_required
-def reset_esp():
-    try:
-        publish_mqtt_message("reset", "ESP32 reset sent", "Failed to send reset")
-    except Exception as e:
-        flash(f"Failed to send reset Error: {e}", "danger")
-    return redirect(url_for("fan_control"))
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    # Retrieve the latest sensor reading.
-    # Assumes get_last_reading() returns a dictionary with keys like 'timestamp', 'temp', 'hum', 'moisture', and 'temp_dht'
-    sensor_data = get_last_reading()
-    
-    # Get current light status (asynchronously)
-    light_status = asyncio.run(get_light_status(Config.WIZLIGHT_IP))
-    
-    # Fetch the latest watering log
-    conn = sqlite3.connect(Config.WATERING_DB_URI)
-    cursor = conn.cursor()
-    cursor.execute("SELECT timestamp, amount_ml FROM watering_log ORDER BY timestamp DESC LIMIT 1")
-    last_watering = cursor.fetchone()
-    conn.close()
-    
-    # Get smart plug status
-    smart_plug_status = mqtt_client.get_plug_status()
-    
-    return render_template('dashboard.html',
-                           sensor_data=sensor_data,
-                           light_status=light_status,
-                           last_watering=last_watering,
-                           smart_plug_status=smart_plug_status)
-
-### EXTRA FAN: DRY HOUSE ###
-# Route to handle the "Start Dry Fan" button
-@app.route("/start_dry_fan", methods=["POST"])
-@login_required
-def start_dry_fan():
-    try:
-        publish_mqtt_message("fan_speed_60", "Dry Fan started successfully at 60%.", "Failed to start Dry Fan","dry/control")
-    except Exception as e:
-        flash(f"Failed to start Dry Fan. Error: {e}", "danger")
-    return redirect(url_for("fan_control"))
-
-# Route to handle the "Stop Dry Fan" button
-@app.route("/stop_dry_fan", methods=["POST"])
-@login_required
-def stop_dry_fan():
-    try:
-        publish_mqtt_message("stop_fan", "Dry Fan stopped successfully.", "Failed to stop Dry Fan","dry/control")
-    except Exception as e:
-        flash(f"Failed to stop Dry Fan. Error: {e}", "danger")
-    return redirect(url_for("fan_control"))
-
-# Route to set the speed of the Dry Fan
-@app.route("/set_dry_fan_speed", methods=["POST"])
-@login_required
-def set_dry_fan_speed():
-    dry_fan_speed = request.form.get("dry_fan_speed")
-    try:
-        dry_fan_speed_int = int(dry_fan_speed)
-        if 0 <= dry_fan_speed_int <= 100:
-            message = f"fan_speed_{dry_fan_speed_int}"
-            publish_mqtt_message(message, f"Dry Fan speed set to {dry_fan_speed_int}%", "Failed to set Dry Fan speed","dry/control")
-        else:
-            flash("Invalid dry fan speed. Please enter a value between 0 and 100.", "danger")
-    except ValueError:
-        flash("Invalid dry fan speed. Please enter a numeric value.", "danger")
-    except Exception as e:
-        flash(f"Failed to set Dry Fan speed. Error: {e}", "danger")
-    return redirect(url_for("fan_control"))
-
-
-
-### NEW WIZ LIGHT CONTROL ###
-from flask import render_template, jsonify, request
-from flask_login import login_required
-from wiz_manager import update_light, turn_off_light, get_light_status, WIZ_LIGHTS
-
-@app.route("/wiz_control")
-@login_required
-def wiz_control():
-    # Pass the lamp names to the template so the user can choose
-    return render_template("wiz_control.html", wiz_lights=WIZ_LIGHTS, active_menu="wiz_control")
-
-@app.route("/api/set_light", methods=["POST"])
-@login_required
-def set_light():
-    data = request.get_json()
-    lamp_name = data.get("lamp_name")
-    brightness = data.get("brightness")
-    r = data.get("r")
-    g = data.get("g")
-    b = data.get("b")
-    
-    try:
-        update_light(lamp_name, brightness, r, g, b)
-        return jsonify({"status": "success"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/turn_off_light", methods=["POST"])
-@login_required
-def turn_off_light_api():
-    data = request.get_json()
-    lamp_name = data.get("lamp_name")
-    
-    try:
-        turn_off_light(lamp_name)
-        return jsonify({"status": "success"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/get_light_status", methods=["POST"])
-@login_required
-def get_light_status_api():
-    data = request.get_json()
-    lamp_name = data.get("lamp_name")
-    
-    try:
-        state = get_light_status(lamp_name)
-        # Convert state to a dict. This example assumes your state object has these attributes.
-        status = {
-            "power": state.power,         # e.g., True/False
-            "brightness": state.brightness,  # e.g., an int value (0-255)
-            "rgb": state.rgb              # e.g., a tuple like (r, g, b)
-        }
-        return jsonify({"status": "success", "data": status})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
