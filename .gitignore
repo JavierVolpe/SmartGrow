@@ -9,4 +9,4 @@ static/
 logs/
 db/
 venv/
-config.py
+__pycache__/
