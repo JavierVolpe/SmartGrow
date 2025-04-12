@@ -33,7 +33,9 @@ FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
 
-MQTT_SERVER = "192.168.87.2"
+MQTT_SERVER = "<your server>"
+MQTT_USERNAME = "<user>"
+MQTT_PASSWORD = "<pass>"
 TOPIC_PUB = b"grow/data"
 TOPIC_SUB = b"grow/control"
 TOPIC_STATUS = b"grow/status"
@@ -320,14 +322,21 @@ def sleep_and_check_messages(total_sleep_time, sleep_interval):
 from machine import WDT
 
 # Initialize the watchdog timer with a 60-second timeout
-wdt = WDT(timeout=60000)  # 60 seconds
+wdt = WDT(timeout=1800000)  # 600 seconds
 
 def main():
     global client
     while True:
         try:
-            client = MQTTClient("0001", MQTT_SERVER)
+            client = MQTTClient(
+                client_id="0001",
+                server=MQTT_SERVER,
+                user=MQTT_USERNAME,
+                password=MQTT_PASSWORD
+            )
             client.set_callback(mqtt_callback)
+
+
             client.connect()
             client.subscribe(TOPIC_SUB)
             print("Connected to MQTT broker and subscribed to topic.")
