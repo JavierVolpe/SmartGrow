@@ -236,3 +236,32 @@ def get_last_reading():
     finally:
         curs.close()
         conn.close()
+
+def get_max_temp_dht_24h():
+    datetime_24hrs_ago = datetime.now() - timedelta(hours=24)
+    datetime_24hrs_ago_str = datetime_24hrs_ago.strftime('%Y-%m-%d %H:%M:%S')
+
+    query = f"""
+        SELECT date_time_str, MAX(temperature_dht)
+        FROM growdata
+        WHERE date_time_str >= '{datetime_24hrs_ago_str}';
+    """
+
+    try:
+        conn = sqlite3.connect(Config.DATA_DB_URI)
+        curs = conn.cursor()
+        curs.execute(query)
+        row = curs.fetchone()
+        if row and row[0] and row[1] is not None:
+            timestamp_str = str(row[0])[:19]
+            max_temp = row[1]
+            return f"Max Temp DHT22 (last 24h): {max_temp:.1f}\u00B0C at {timestamp_str}"
+
+        else:
+            return "No data for the last 24 hours."
+    except Exception as e:
+        print(f"Error fetching max temp_dht: {e}")
+        return "Error fetching max temp."
+    finally:
+        curs.close()
+        conn.close()

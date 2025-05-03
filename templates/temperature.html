@@ -37,12 +37,14 @@
             {{ data_img3 | safe }}
         </div>
     </div>
-    <!-- Last Reading -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-12 text-center">
-            <h4>{{ last_reading }}</h4>  <!-- Display last reading -->
-        </div>
+<!-- Last Reading -->
+<div class="row justify-content-center mt-4">
+    <div class="col-12 text-center">
+        <h4>{{ last_reading }}</h4>  
+        <h5 class="mt-2">{{ max_temp_dht }}</h5>  
     </div>
+</div>
+
     <!-- Buttons to Control Devices -->
     <div class="row justify-content-center my-4">
         <div class="col-auto">

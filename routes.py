@@ -13,7 +13,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Local application imports
 from app import app, login_manager
 from config import Config
-from graph import graph_db_data, get_last_reading
+from graph import graph_db_data, get_last_reading, get_max_temp_dht_24h
 from models import User, load_user, create_watering_table
 from device_control import (
     mqtt_client,             # The global ShellyPlugMQTTClient instance
@@ -109,13 +109,16 @@ def logout():
 @login_required
 def temperature():
     last_reading = get_last_reading()
+    max_temp_dht = get_max_temp_dht_24h()
+
     return render_template(
         "temperature.html",
         data_img=graph_db_data("temp"),
         data_img2=graph_db_data("hum"),
         data_img3=graph_db_data("moisture"),
         data_img4=graph_db_data("temp_dht"),
-        last_reading=last_reading
+        last_reading=last_reading,
+        max_temp_dht=max_temp_dht  # NEW
     )
 
 @app.route("/send_update", methods=["POST"])
@@ -225,12 +228,27 @@ def slideshow(filename):
 @app.route("/remote_wakeup", methods=["GET", "POST"])
 @login_required
 def wol():
+    result = None
     if request.method == "POST":
         mac_address = request.form.get("macAddress")
-        result = execute_command(f"sudo etherwake -i wlan0 {mac_address}") if is_valid_mac(mac_address) else "Error: Invalid MAC address"
-    else:
-        result = execute_command(f"sudo etherwake -i wlan0 {Config.REMOTE_PC_MAC}") if is_valid_mac(Config.REMOTE_PC_MAC) else "Error: Invalid MAC address"
-    return render_template("remote_power.html", remote_pc_ip=Config.REMOTE_PC_IP, remote_pc_mac=Config.REMOTE_PC_MAC)
+        if is_valid_mac(mac_address):
+            try:
+                address = "http://" + Config.PI_IP + ":5000/api/wol"
+                response = requests.post(address, data={"macAddress": mac_address}, timeout=5)
+                result = f"✅ Raspberry Pi says: {response.text}"
+            except requests.RequestException as e:
+                result = f"❌ Could not reach Raspberry Pi: {e}"
+        else:
+            result = "❌ Error: Invalid MAC address"
+
+    return render_template(
+        "remote_power.html",
+        remote_pc_ip=Config.REMOTE_PC_IP,
+        remote_pc_mac=Config.REMOTE_PC_MAC,
+        result=result
+    )
+
+
 
 
 @app.route("/remote_shutdown", methods=["GET", "POST"])
