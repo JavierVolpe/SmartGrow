@@ -33,16 +33,16 @@ FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
 
-MQTT_SERVER = "<your server>"
-MQTT_USERNAME = "<user>"
-MQTT_PASSWORD = "<pass>"
+MQTT_SERVER = "vm.javiervolpe.dk"
+MQTT_USERNAME = "growtent"
+MQTT_PASSWORD = "G987rowtent."
 TOPIC_PUB = b"grow/data"
 TOPIC_SUB = b"grow/control"
 TOPIC_STATUS = b"grow/status"
-DRY_SOIL = 800  # ADC value in dry soil
-WET_SOIL = 300  # ADC value in wet soil
+DRY_SOIL = 720  # ADC value in dry soil
+WET_SOIL = 276  # ADC value in wet soil
 NUM_SAMPLES = 50
-RETURN_PERCENTAGE = False
+RETURN_PERCENTAGE = True
 
 # OTA update default URL (change to your update server URL)
 OTA_DEFAULT_URL = "http://192.168.87.2/ota/main.py"
@@ -175,6 +175,24 @@ def read_soil_moisture(return_percentage=True):
     else:
         return average_adc
 
+# Store the previous value globally
+previous_moisture = None
+
+def filter_adc_value(current_value, threshold=100):
+    global previous_moisture
+    if previous_moisture is None:
+        previous_moisture = current_value
+        return current_value
+
+    # If jump is too large, discard and return previous
+    if abs(current_value - previous_moisture) > threshold:
+        return previous_moisture
+    else:
+        previous_moisture = current_value
+        return current_value
+
+
+
 # ------------------------------
 # OTA Update Function
 # ------------------------------
@@ -282,7 +300,7 @@ def mqtt_callback(topic, msg):
 def publish_update(send=True):
     """Publish sensor data to the MQTT server."""
     # Read sensors (moisture as percentage now)
-    moisture = read_soil_moisture(return_percentage=RETURN_PERCENTAGE)
+    moisture = filter_adc_value(read_soil_moisture(return_percentage=RETURN_PERCENTAGE))
     temperature_ds = read_ds18b20()
     temperature_dht, humidity = read_dht22()
     
@@ -362,3 +380,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
