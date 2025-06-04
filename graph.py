@@ -1,6 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-import matplotlib
 from io import BytesIO
 import sqlite3
 import base64
@@ -8,7 +9,6 @@ from config import Config
 from datetime import datetime, timedelta
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num
-matplotlib.use('agg')
 
 
 def graph_db_data(sensor_type):
