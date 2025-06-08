@@ -33,9 +33,9 @@ FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
 
-MQTT_SERVER = "vm.javiervolpe.dk"
+MQTT_SERVER = "vm.dk"
 MQTT_USERNAME = "growtent"
-MQTT_PASSWORD = "G987rowtent."
+MQTT_PASSWORD = ""
 TOPIC_PUB = b"grow/data"
 TOPIC_SUB = b"grow/control"
 TOPIC_STATUS = b"grow/status"
