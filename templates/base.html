@@ -4,114 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - SmartGrow</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Bootstrap JS Bundle (includes Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<link rel="icon" href="static/favicon.ico" type="image/x-icon">
-    
+    <!-- Bootswatch Darkly Theme for Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
     <style>
-        body {
-            background-color: #121212;  /* Dark background */
-            color: #e0e0e0;  /* Light text */
-        }
         .active-link {
-            font-weight: bold; 
+            font-weight: bold;
+            color: #0d6efd !important;
         }
-        /* Ensure dropdown is visible on hover for desktops */
-        @media (min-width: 992px) {
-            .dropdown:hover .dropdown-menu {
-                display: block;
-            }
+
+        .navbar-brand {
+            font-weight: bold;
         }
-        /* Custom styles for dark mode */
-        .navbar {
-            background-color: #1f1f1f; /* Dark navbar background */
+
+        .dropdown:hover .dropdown-menu {
+            display: block;
         }
-        .navbar .navbar-brand, 
-        .navbar .nav-link {
-            color: #e0e0e0 !important;  /* Light text for navbar */
+
+        .graph-image {
+            max-height: 400px;
         }
-        .navbar .nav-link:hover, 
-        .navbar .active-link {
-            color: #007bff !important; /* Highlight active or hover link */
-        }
-        .dropdown-menu {
-            background-color: #2a2a2a; /* Dark dropdown background */
-        }
-        .dropdown-item {
-            color: #e0e0e0 !important;  /* Light text in dropdown */
-        }
-        .dropdown-item:hover {
-            background-color: #007bff; /* Hover effect in dropdown */
-            color: white; /* White text on hover */
-        }
-        .alert {
-            background-color: #333333;  /* Dark alert background */
-            color: #f0f0f0;  /* Light alert text */
-        }
+
         .alert .btn-close {
-            filter: invert(1); /* Invert close button icon for visibility */
+            filter: invert(1); /* Light close icon on dark alert */
+        }
+
+        .img-thumbnail {
+            border: 2px solid #6c757d;
+        }
+
+        .pagination .page-link {
+            color: #0d6efd;
+        }
+
+        .pagination .page-link:hover {
+            background-color: #0d6efd;
+            color: white;
         }
     </style>
 </head>
-<body data-bs-theme="dark">
-    <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">Smart Life</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-                <div class="navbar-nav">
-                    {% if current_user.is_authenticated %}
-                        <a class="nav-link {% if active_menu == 'temperature' %} active-link {% endif %}" href="/temperature">Temperature</a>
+<body>
 
-                        <!-- Dropdown menu for "Controls" -->
-                        <div class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {% if active_menu == 'lights' or active_menu == 'remote_power' %} active-link {% endif %}" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Controls
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="nav-link {% if active_menu == 'fan_control' %} active-link {% endif %}" href="/fan_control">Fan control</a></li>
-                                <li><a class="nav-link {% if active_menu == 'smart_plug' %} active-link {% endif %}" href="{{ url_for('smart_plug') }}">Smart plug</a></li>
-                                <li><a class="nav-link {% if active_menu == 'wiz_control' %} active-link {% endif %}" href="/wiz_control">WiZ Light control</a></li>
-                                <li><a class="nav-link {% if active_menu == 'remote_power' %} active-link {% endif %}" href="/remote_power">PC Remote power</a></li>
-                            </ul>
-                        </div>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">SmartGrow</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav">
+                {% if current_user.is_authenticated %}
+                    <a class="nav-link {% if active_menu == 'temperature' %}active-link{% endif %}" href="/temperature">Temperature</a>
 
-                        <a class="nav-link {% if active_menu == 'photo' %} active-link {% endif %}" href="/photo">Camera</a>
-                        <a class="nav-link {% if active_menu == 'gallery' %} active-link {% endif %}" href="/gallery">Gallery</a>
-                        
-                        
-                        <a class="nav-link {% if active_menu == 'watering' %} active-link {% endif %}" href="/watering">Watering</a>
-                        <a class="nav-link {% if active_menu == 'calculate' %} active-link {% endif %}" href="/calculate">Age calculator</a>
-                        <a class="nav-link {% if active_menu == 'cron_list' %} active-link {% endif %}" href="/cron_list">Crontab editor</a>
-                        
-                        <a class="nav-link" href="/logout">Logout</a>
-                    {% else %}
-                        <a class="nav-link {% if active_menu == 'register' %} active-link {% endif %}" href="/register">Register</a>
-                        <a class="nav-link {% if active_menu == 'login' %} active-link {% endif %}" href="/login">Login</a>
-                    {% endif %}
-                </div>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if active_menu in ['fan_control', 'smart_plug', 'wiz_control', 'remote_power'] %}active-link{% endif %}" href="#" role="button" data-bs-toggle="dropdown">Controls</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item {% if active_menu == 'fan_control' %}active-link{% endif %}" href="/fan_control">Fan Control</a></li>
+                            <li><a class="dropdown-item {% if active_menu == 'smart_plug' %}active-link{% endif %}" href="{{ url_for('smart_plug') }}">Smart Plug</a></li>
+                            <li><a class="dropdown-item {% if active_menu == 'wiz_control' %}active-link{% endif %}" href="/wiz_control">WiZ Light Control</a></li>
+                            <li><a class="dropdown-item {% if active_menu == 'remote_power' %}active-link{% endif %}" href="/remote_power">PC Power</a></li>
+                        </ul>
+                    </div>
+
+                    <a class="nav-link {% if active_menu == 'photo' %}active-link{% endif %}" href="/photo">Camera</a>
+                    <a class="nav-link {% if active_menu == 'gallery' %}active-link{% endif %}" href="/gallery">Gallery</a>
+                    <a class="nav-link {% if active_menu == 'watering' %}active-link{% endif %}" href="/watering">Watering</a>
+                    <a class="nav-link {% if active_menu == 'calculate' %}active-link{% endif %}" href="/calculate">Age Calculator</a>
+                    <a class="nav-link {% if active_menu == 'cron_list' %}active-link{% endif %}" href="/cron_list">Crontab</a>
+                    <a class="nav-link" href="/logout">Logout</a>
+                {% else %}
+                    <a class="nav-link {% if active_menu == 'register' %}active-link{% endif %}" href="/register">Register</a>
+                    <a class="nav-link {% if active_menu == 'login' %}active-link{% endif %}" href="/login">Login</a>
+                {% endif %}
             </div>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    <!-- Flash messages block -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="container mt-3">
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    <div class="container mt-3">
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         {% endfor %}
-      </div>
-    {% endif %}
-    {% endwith %}
+    </div>
+{% endif %}
+{% endwith %}
 
-    {% block content %}{% endblock %}
+<!-- Page Content -->
+{% block content %}{% endblock %}
+
 </body>
 </html>
