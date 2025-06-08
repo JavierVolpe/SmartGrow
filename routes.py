@@ -109,7 +109,7 @@ def logout():
 # Temperature, Photo, and Gallery Routes
 # --------------------------------------------------
 
-@app.route("/temperature", methods=["GET"])
+@app.route("/temperature", methods=["GET", "POST"])
 @login_required
 def temperature():
     if request.method == "POST":
