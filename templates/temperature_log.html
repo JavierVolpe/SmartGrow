@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set active_menu = "temperature" %}
+{% block title %}Temperature Log{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Temperature & Humidity Log</h2>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label for="start_date" class="form-label">From</label>
+            <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}">
+        </div>
+        <div class="col-md-4">
+            <label for="end_date" class="form-label">To</label>
+            <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}">
+        </div>
+        <div class="col-md-4 align-self-end text-end">
+            <button type="submit" class="btn btn-primary">Apply Filter</button>
+        </div>
+        <form method="post" class="mb-3 text-end">
+    <button type="submit" class="btn btn-sm btn-primary">Request Update</button>
+</form>
+
+    </form>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <h5>DHT22 (Ambient)</h5>
+            <ul>
+                <li>Max: {{ trends.dht.max }}°C at {{ trends.dht.max_time }}</li>
+                <li>Min: {{ trends.dht.min }}°C at {{ trends.dht.min_time }}</li>
+                <li>Avg: {{ trends.dht.avg }}°C</li>
+            </ul>
+            <img src="data:image/png;base64,{{ graphs.dht }}" class="img-fluid" />
+        </div>
+        <div class="col-md-4">
+            <h5>DS18B20 (Soil)</h5>
+            <ul>
+                <li>Max: {{ trends.ds.max }}°C at {{ trends.ds.max_time }}</li>
+                <li>Min: {{ trends.ds.min }}°C at {{ trends.ds.min_time }}</li>
+                <li>Avg: {{ trends.ds.avg }}°C</li>
+            </ul>
+            <img src="data:image/png;base64,{{ graphs.ds }}" class="img-fluid" />
+        </div>
+        <div class="col-md-4">
+            <h5>Humidity</h5>
+            <ul>
+                <li>Max: {{ trends.hum.max }}% at {{ trends.hum.max_time }}</li>
+                <li>Min: {{ trends.hum.min }}% at {{ trends.hum.min_time }}</li>
+                <li>Avg: {{ trends.hum.avg }}%</li>
+            </ul>
+            <img src="data:image/png;base64,{{ graphs.hum }}" class="img-fluid" />
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Ambient Temp (°C)</th>
+                    <th>Soil Temp (°C)</th>
+                    <th>Humidity (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td>{{ row[1] }}</td>
+                    <td>{{ row[2] }}</td>
+                    <td>{{ row[3] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

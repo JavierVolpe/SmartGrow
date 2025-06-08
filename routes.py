@@ -13,7 +13,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Local application imports
 from app import app, login_manager
 from config import Config
-from graph import graph_db_data, get_last_reading, get_max_temp_dht_24h
 from models import User, load_user, create_watering_table
 from device_control import (
     mqtt_client,             # The global ShellyPlugMQTTClient instance
@@ -28,7 +27,12 @@ from device_control import (
     set_light_state_sync, 
     turn_off_light_sync
 )
-
+from matplotlib.figure import Figure
+from io import BytesIO
+import base64
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 
 from utils import execute_command, is_valid_ip, is_valid_mac, publish_mqtt_message, remote_shutdown_func
 from cron_manager import CronManager
@@ -105,20 +109,87 @@ def logout():
 # Temperature, Photo, and Gallery Routes
 # --------------------------------------------------
 
-@app.route("/temperature")
+@app.route("/temperature", methods=["GET"])
 @login_required
 def temperature():
-    last_reading = get_last_reading()
-    max_temp_dht = get_max_temp_dht_24h()
+    if request.method == "POST":
+        return publish_mqtt_message(
+            "send_update",
+            "Update request sent successfully.",
+            "Failed to send update request",
+        )
+
+    end_time = datetime.now()
+    start_time = end_time - timedelta(days=1)
+
+    start_date = request.args.get("start_date") or start_time.strftime("%Y-%m-%d")
+    end_date = request.args.get("end_date") or end_time.strftime("%Y-%m-%d")
+
+    query = """
+        SELECT date_time_str, temperature_dht, temperature_ds, humidity
+        FROM growdata
+        WHERE date_time_str BETWEEN ? AND ?
+        ORDER BY date_time_str DESC
+    """
+    params = [f"{start_date} 00:00:00", f"{end_date} 23:59:59"]
+
+    conn = sqlite3.connect(Config.DATA_DB_URI)
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    def analyze_with_time(data, index):
+        values = [(row[0], row[index]) for row in rows if row[index] is not None]
+        if not values:
+            return {"max": None, "max_time": None, "min": None, "min_time": None, "avg": None}
+        max_val, max_time = max((val, ts) for ts, val in values)
+        min_val, min_time = min((val, ts) for ts, val in values)
+        avg_val = round(sum(val for _, val in values) / len(values), 2)
+        return {
+            "max": max_val, "max_time": max_time,
+            "min": min_val, "min_time": min_time,
+            "avg": avg_val
+        }
+
+    trends = {
+        "dht": analyze_with_time(rows, 1),
+        "ds": analyze_with_time(rows, 2),
+        "hum": analyze_with_time(rows, 3),
+    }
+
+    # Generate sparklines
+    def create_sparkline(index, label):
+        times = [datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S") for r in rows if r[index] is not None]
+        values = [r[index] for r in rows if r[index] is not None]
+        fig = Figure(figsize=(4, 2), dpi=100)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(times, values, linewidth=1.5)
+        ax.set_title(label, fontsize=8, color='white')
+        ax.set_facecolor("#2a2a2a")
+        fig.patch.set_facecolor("#1f1f1f")
+        ax.tick_params(axis='x', labelsize=6, colors='white')
+        ax.tick_params(axis='y', labelsize=6, colors='white')
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.grid(True, linestyle="--", alpha=0.3)
+        buf = BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format="png", transparent=True)
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    graphs = {
+        "dht": create_sparkline(1, "Ambient Temp"),
+        "ds": create_sparkline(2, "Soil Temp"),
+        "hum": create_sparkline(3, "Humidity"),
+    }
 
     return render_template(
-        "temperature.html",
-        data_img=graph_db_data("temp"),
-        data_img2=graph_db_data("hum"),
-        data_img3=graph_db_data("moisture"),
-        data_img4=graph_db_data("temp_dht"),
-        last_reading=last_reading,
-        max_temp_dht=max_temp_dht  # NEW
+        "temperature_log.html",
+        rows=rows,
+        start_date=start_date,
+        end_date=end_date,
+        trends=trends,
+        graphs=graphs
     )
 
 @app.route("/send_update", methods=["POST"])
@@ -724,6 +795,7 @@ def delete_task(index):
     except Exception as e:
         flash(f'Error deleting job: {e}', 'danger')
     return redirect(url_for('cron_list'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
