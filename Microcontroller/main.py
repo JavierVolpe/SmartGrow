@@ -32,10 +32,11 @@ DHT_PIN = 5              # Use GPIO 5 for DHT22
 FAN_PWM_PIN = 14         # Use GPIO 14 for fan PWM control
 EXTRA_FAN_PIN_NUM = 16   # Use GPIO 16 for extra fan control
 PUMP_PIN_NUM   = 32      # Use GPIO 32 for pump control
+RELAY_PIN_NUM = 33  # Choose a free GPIO pin for relay control
 
-MQTT_SERVER = "vm.dk"
+MQTT_SERVER = "vm.javiervolpe.dk"
 MQTT_USERNAME = "growtent"
-MQTT_PASSWORD = ""
+MQTT_PASSWORD = "G987rowtent."
 TOPIC_PUB = b"grow/data"
 TOPIC_SUB = b"grow/control"
 TOPIC_STATUS = b"grow/status"
@@ -91,18 +92,25 @@ try:
     print("Pump initialized successfully.")
 except Exception as e:
     print("Pump initialization failed:", e)
-
+    
+# Relay setup
+relay = Pin(RELAY_PIN_NUM, Pin.OUT)
+fan_pwm.duty(30)
+relay.on()
 # ------------------------------
 # Sensor & Actuator Functions
 # ------------------------------
 
 def set_fan_speed(speed_percent):
-    """Set the main fan speed as a percentage."""
     global fan_speed
     if 0 <= speed_percent <= 100:
         duty_cycle = int((speed_percent / 100) * 1023)
         fan_pwm.duty(duty_cycle)
         fan_speed = speed_percent
+        if speed_percent == 0:
+            relay.off()  # Cut power when fan should be off
+        else:
+            relay.on()   # Ensure relay is supplying power
         print(f"Fan speed set to {speed_percent}%")
     else:
         print("Invalid fan speed percentage. Must be between 0 and 100.")
@@ -380,4 +388,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
